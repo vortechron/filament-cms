@@ -17,7 +17,7 @@ final class PageContent
     public function section(string $key): SectionContent
     {
         $section = $this->page->section($key);
-        $values = self::merge($section, $this->saved[$key] ?? []);
+        $values = self::merge($this->page, $section, $this->saved[$key] ?? []);
         $visible = ! $section->hideable() || (bool) ($values[self::VISIBLE] ?? true);
         unset($values[self::VISIBLE]);
 
@@ -30,14 +30,14 @@ final class PageContent
     }
 
     /**
-     * The client's saved values on top of the defaults, key by key. A key the
-     * client saved empty stays empty.
+     * The client's saved values on top of the page's and the section's
+     * defaults, key by key. A key the client saved empty stays empty.
      *
      * @param  array<string, mixed>  $saved
      * @return array<string, mixed>
      */
-    public static function merge(CmsSection $section, array $saved): array
+    public static function merge(CmsPage $page, CmsSection $section, array $saved): array
     {
-        return array_replace($section->defaults(), $saved);
+        return array_replace($section->defaults(), $page->defaults()[$section->key] ?? [], $saved);
     }
 }

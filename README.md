@@ -120,6 +120,20 @@ class SiteSettings extends StandardSettings
 }
 ```
 
+To give the standard settings this client's starting values, override `defaults()`:
+
+```php
+class SiteSettings extends StandardSettings
+{
+    public function defaults(): array
+    {
+        return ['business' => ['name' => 'ROC - Adam Shop'], 'contact' => ['phones' => ['011-2705 1612']]];
+    }
+}
+```
+
+`defaults()` works on any page. Its values sit on top of each section's own defaults.
+
 ## Tests
 
 ```bash

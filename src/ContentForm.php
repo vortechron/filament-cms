@@ -40,7 +40,7 @@ final class ContentForm
         $state = [];
 
         foreach ($page->sections() as $section) {
-            $values = PageContent::merge($section, $saved[$section->key] ?? []);
+            $values = PageContent::merge($page, $section, $saved[$section->key] ?? []);
 
             if ($section->hideable()) {
                 $values[PageContent::VISIBLE] = (bool) ($values[PageContent::VISIBLE] ?? true);

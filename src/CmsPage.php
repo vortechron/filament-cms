@@ -26,6 +26,18 @@ abstract class CmsPage
      */
     abstract public function sections(): array;
 
+    /**
+     * Starting values for this project, by section key. They sit on top of
+     * each section's own defaults, so a shared section (like the standard
+     * settings) can start with this client's name and numbers.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function defaults(): array
+    {
+        return [];
+    }
+
     public function section(string $key): CmsSection
     {
         foreach ($this->sections() as $section) {

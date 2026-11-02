@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Tests\Feature;
 use Livewire\Livewire;
 use Vortechron\FilamentCms\Filament\Pages\EditSettings;
 use Vortechron\FilamentCms\Tests\TestCase;
+use Workbench\App\Cms\ShopSettings;
 
 class SettingsTest extends TestCase
 {
@@ -60,5 +61,17 @@ class SettingsTest extends TestCase
             ])
             ->call('save')
             ->assertHasFormErrors(['contact.map_url', 'social.links.0.url']);
+    }
+
+    public function test_a_project_sets_its_own_starting_settings(): void
+    {
+        config(['filament-cms.settings' => ShopSettings::class]);
+        $this->actingAsClient();
+
+        $this->assertSame('Kedai Contoh', cms_settings()->section('business')->name);
+        $this->assertSame(['011-1111 2222'], cms_settings()->section('contact')->phones);
+        $this->assertFalse(cms_settings()->section('seo')->allow_indexing);
+
+        Livewire::test(EditSettings::class)->assertSchemaStateSet(['business.name' => 'Kedai Contoh']);
     }
 }
