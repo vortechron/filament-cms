@@ -16,11 +16,6 @@ class EditSettings extends EditContent
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCog6Tooth;
 
-    public static function getNavigationGroup(): ?string
-    {
-        return null;
-    }
-
     /**
      * @return array<NavigationItem>
      */
@@ -28,6 +23,7 @@ class EditSettings extends EditContent
     {
         return [
             NavigationItem::make(app(Cms::class)->definition(Cms::SETTINGS)::label())
+                ->group(static::getNavigationGroup())
                 ->icon(static::$navigationIcon)
                 ->sort(100)
                 ->url(static::getUrl())

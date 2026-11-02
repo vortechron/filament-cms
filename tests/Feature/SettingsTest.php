@@ -3,6 +3,7 @@
 namespace Vortechron\FilamentCms\Tests\Feature;
 
 use Livewire\Livewire;
+use Vortechron\FilamentCms\Filament\Pages\EditContent;
 use Vortechron\FilamentCms\Filament\Pages\EditSettings;
 use Vortechron\FilamentCms\Tests\TestCase;
 use Workbench\App\Cms\ShopSettings;
@@ -73,5 +74,17 @@ class SettingsTest extends TestCase
         $this->assertFalse(cms_settings()->section('seo')->allow_indexing);
 
         Livewire::test(EditSettings::class)->assertSchemaStateSet(['business.name' => 'Kedai Contoh']);
+    }
+
+    public function test_settings_sit_after_the_pages_in_the_content_menu(): void
+    {
+        $this->actingAsClient();
+
+        [$settings] = EditSettings::getNavigationItems();
+        [$home] = EditContent::getNavigationItems();
+
+        $this->assertSame('Kandungan', $settings->getGroup());
+        $this->assertSame($home->getGroup(), $settings->getGroup());
+        $this->assertGreaterThan($home->getSort(), $settings->getSort());
     }
 }
