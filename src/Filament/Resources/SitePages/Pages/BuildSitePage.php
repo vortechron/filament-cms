@@ -26,6 +26,15 @@ class BuildSitePage extends Page
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
+        $this->authorizePageBuilder();
+    }
+
+    /**
+     * Only someone who may edit this page may open or use its builder.
+     */
+    protected function authorizePageBuilder(): void
+    {
+        abort_unless(SitePageResource::canEdit($this->record), 403);
     }
 
     public function getTitle(): string

@@ -1,7 +1,12 @@
 {
     "name": "vortechron/filament-cms",
     "description": "A small CMS for hand-designed Filament 5 client websites: page text, lists and settings the client edits without breaking the design.",
-    "keywords": ["filament", "filament-plugin", "laravel", "cms"],
+    "keywords": [
+        "filament",
+        "filament-plugin",
+        "laravel",
+        "cms"
+    ],
     "homepage": "https://github.com/vortechron/filament-cms",
     "license": "MIT",
     "type": "library",
@@ -15,7 +20,7 @@
         "php": "^8.3",
         "filament/filament": "^5.7",
         "spatie/laravel-package-tools": "^1.16",
-        "vortechron/filament-block-editor": "^1.0"
+        "vortechron/filament-block-editor": "^1.0.1"
     },
     "require-dev": {
         "laravel/pint": "^1.18",
@@ -56,9 +61,11 @@
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
-    "repositories": [{
-        "name": "vortechron-block-editor",
-        "type": "vcs",
-        "url": "https://github.com/vortechron/filament-block-editor.git"
-    }]
+    "repositories": [
+        {
+            "name": "vortechron-block-editor",
+            "type": "vcs",
+            "url": "https://github.com/vortechron/filament-block-editor.git"
+        }
+    ]
 }
