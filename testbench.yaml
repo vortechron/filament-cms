@@ -1,0 +1,19 @@
+laravel: '@testbench'
+
+providers:
+  - Workbench\App\Providers\Filament\AdminPanelProvider
+
+migrations:
+  - workbench/database/migrations
+
+env:
+  - APP_NAME="Filament CMS"
+  - DB_CONNECTION=sqlite
+  - FILESYSTEM_DISK=public
+
+workbench:
+  start: '/admin'
+  install: true
+  discovers:
+    web: true
+    factories: true
