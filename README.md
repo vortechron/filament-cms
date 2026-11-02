@@ -1,6 +1,6 @@
 # Filament CMS
 
-A small CMS for hand-designed client websites on **Filament 5**.
+A small CMS for client websites on **Filament 5**: a page builder for pages, plus fixed fields, lists and settings.
 
 You build the page in Blade and CSS. The client edits its text, photos and lists in the panel, and cannot break the design: they fill in sections, they do not move them.
 
@@ -15,11 +15,16 @@ The package never draws the public page and ships no CSS. Each project owns its 
 
 ## Install
 
+Both packages install from GitHub (they are not on Packagist):
+
 ```bash
-composer require vortechron/filament-cms
+composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
+composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
+composer require vortechron/filament-cms:^0.2
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
+php artisan filament:assets
 ```
 
 Add the plugin to the panel:
@@ -31,6 +36,40 @@ $panel->plugin(
     FilamentCmsPlugin::make()->developers(fn (User $user): bool => $user->is_developer),
 );
 ```
+
+## Site pages built in the page builder
+
+The **Halaman** screen lists the client's pages. Each page has a title, an address (`/` for the home page,
+`/about`, ...) and its content, built full screen in the page builder from
+[`vortechron/filament-block-editor`](https://github.com/vortechron/filament-block-editor) (the "Bina" button).
+Saving puts the content live, keeps the newest 20 versions, and developers can restore one from the table.
+
+Show the pages on the site by calling this last in `routes/web.php`:
+
+```php
+use Vortechron\FilamentCms\FilamentCms;
+
+FilamentCms::routes();
+```
+
+Each page is drawn by your own Blade view, `config('filament-cms.page_view')` (`cms.page` by default). It gets
+`$page`, `$content` (the sections as HTML), `$sections`, `$context` and `$isBuilderPreview`. The same view draws
+the builder's live preview, so the client edits inside your real header, footer and CSS:
+
+```blade
+<head>
+    <x-filament-block-editor::styles />
+    <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+    @include('partials.header')
+    <main>{!! $content !!}</main>
+    @include('partials.footer')
+</body>
+```
+
+Register your own blocks (the parts of your design the client fills in but cannot break) with the block
+editor's `BlockRegistry`; see its README. Turn the screen off with `FilamentCmsPlugin::make()->sitePages(false)`.
 
 ## A page and its sections
 

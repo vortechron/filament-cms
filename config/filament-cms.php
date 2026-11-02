@@ -17,6 +17,12 @@ return [
     'settings' => StandardSettings::class,
 
     /*
+    | The project's Blade view that draws a site page. It gets $page, $content
+    | (the sections as HTML), $sections, $context and $isBuilderPreview.
+    */
+    'page_view' => 'cms.page',
+
+    /*
     | Where uploaded photos are stored. It must be a public disk.
     */
     'disk' => 'public',

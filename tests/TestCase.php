@@ -21,6 +21,7 @@ use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\Concerns\WithWorkbench;
 use Orchestra\Testbench\TestCase as Orchestra;
 use RyanChandler\BladeCaptureDirective\BladeCaptureDirectiveServiceProvider;
+use Vortechron\FilamentBlockEditor\FilamentBlockEditorServiceProvider;
 use Vortechron\FilamentCms\FilamentCmsServiceProvider;
 use Workbench\App\Cms\HomePage;
 use Workbench\App\Models\User;
@@ -56,6 +57,7 @@ abstract class TestCase extends Orchestra
             SupportServiceProvider::class,
             TablesServiceProvider::class,
             WidgetsServiceProvider::class,
+            FilamentBlockEditorServiceProvider::class,
             FilamentCmsServiceProvider::class,
             AdminPanelProvider::class,
         ];
@@ -68,6 +70,7 @@ abstract class TestCase extends Orchestra
         $app['config']->set('app.locale', 'ms');
         $app['config']->set('filesystems.disks.public.url', '/storage');
         $app['config']->set('filament-cms.pages', [HomePage::class]);
+        $app['view']->addLocation(__DIR__.'/../workbench/resources/views');
     }
 
     protected function actingAsClient(): User
