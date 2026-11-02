@@ -25,7 +25,7 @@ class ContactSettings extends SettingsSection
                 ->addActionLabel(__('filament-cms::settings.add_phone')),
             TextInput::make('email')->label(__('filament-cms::settings.email'))->email()->maxLength(120),
             Textarea::make('address')->label(__('filament-cms::settings.address'))->rows(3)->maxLength(300),
-            TextInput::make('map_url')->label(__('filament-cms::settings.map_url'))->url()->maxLength(500),
+            TextInput::make('map_url')->label(__('filament-cms::settings.map_url'))->url()->rule('url:http,https')->maxLength(500),
         ];
     }
 }

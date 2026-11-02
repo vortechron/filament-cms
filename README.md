@@ -86,6 +86,8 @@ Register it in `config/filament-cms.php`:
 'pages' => [App\Cms\HomePage::class],
 ```
 
+Any link field a client fills in should allow only web addresses: `TextInput::make('url')->url()->rule('url:http,https')`. Laravel's plain `url` rule also accepts schemes such as `data://` and `ftp://`.
+
 ## Read it in Blade
 
 ```blade

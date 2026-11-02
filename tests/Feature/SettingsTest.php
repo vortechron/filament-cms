@@ -47,4 +47,18 @@ class SettingsTest extends TestCase
         $this->assertSame('https://wa.me/601164046204?text=Salam%20kedai', cms_whatsapp_url('+60 11-6404 6204', 'Salam kedai'));
         $this->assertNull(cms_whatsapp_url(''));
     }
+
+    public function test_links_must_be_web_addresses(): void
+    {
+        $this->actingAsClient();
+
+        Livewire::test(EditSettings::class)
+            ->fillForm([
+                'business.name' => 'ROC - Adam Shop',
+                'contact.map_url' => 'data://text/html,hello',
+                'social.links' => [['platform' => 'facebook', 'url' => 'ftp://example.com/page']],
+            ])
+            ->call('save')
+            ->assertHasFormErrors(['contact.map_url', 'social.links.0.url']);
+    }
 }

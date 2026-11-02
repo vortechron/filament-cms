@@ -32,7 +32,7 @@ class SocialSettings extends SettingsSection
                 ->hiddenLabel()
                 ->schema([
                     Select::make('platform')->label(__('filament-cms::settings.platform'))->options(self::PLATFORMS)->required(),
-                    TextInput::make('url')->label(__('filament-cms::settings.url'))->url()->required()->maxLength(500),
+                    TextInput::make('url')->label(__('filament-cms::settings.url'))->url()->required()->rule('url:http,https')->maxLength(500),
                 ])
                 ->columns(2)
                 ->maxItems(8)
