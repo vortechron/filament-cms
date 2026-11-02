@@ -21,13 +21,17 @@ final class ContentStore
         return DB::transaction(function () use ($key, $content, $user): CmsContent {
             $saved = CmsContent::query()->updateOrCreate(['key' => $key], ['content' => $content]);
 
-            CmsRevision::query()->create([
-                'key' => $key,
-                'content' => $content,
-                'user_id' => $user?->getAuthIdentifier(),
-            ]);
+            $latest = CmsRevision::query()->where('key', $key)->latest('id')->value('content');
 
-            $this->prune($key);
+            if ($latest !== $content) {
+                CmsRevision::query()->create([
+                    'key' => $key,
+                    'content' => $content,
+                    'user_id' => $user?->getAuthIdentifier(),
+                ]);
+
+                $this->prune($key);
+            }
 
             return $saved;
         });

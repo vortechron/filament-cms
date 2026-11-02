@@ -18,16 +18,16 @@ class SettingsTest extends TestCase
             ->assertOk()
             ->assertSee('Tetapan')
             ->fillForm([
-                'business.name' => 'ROC - Adam Shop',
-                'contact.phones' => [['number' => '011-2705 1612']],
+                'business.name' => 'Kedai Contoh',
+                'contact.phones' => [['number' => '012-345 6789']],
                 'hours.days' => [['days' => 'Isnin - Sabtu', 'time' => '9 pagi - 6 petang']],
             ])
             ->call('save')
             ->assertHasNoFormErrors();
 
         $settings = cms_settings();
-        $this->assertSame('ROC - Adam Shop', $settings->section('business')->name);
-        $this->assertSame(['011-2705 1612'], $settings->section('contact')->phones);
+        $this->assertSame('Kedai Contoh', $settings->section('business')->name);
+        $this->assertSame(['012-345 6789'], $settings->section('contact')->phones);
         $this->assertSame('Isnin - Sabtu', $settings->section('hours')->days[0]['days']);
     }
 
@@ -45,8 +45,8 @@ class SettingsTest extends TestCase
 
     public function test_a_malaysian_number_becomes_a_whatsapp_link(): void
     {
-        $this->assertSame('https://wa.me/601127051612', cms_whatsapp_url('011-2705 1612'));
-        $this->assertSame('https://wa.me/601164046204?text=Salam%20kedai', cms_whatsapp_url('+60 11-6404 6204', 'Salam kedai'));
+        $this->assertSame('https://wa.me/60123456789', cms_whatsapp_url('012-345 6789'));
+        $this->assertSame('https://wa.me/60132223333?text=Salam%20kedai', cms_whatsapp_url('+60 13-222 3333', 'Salam kedai'));
         $this->assertNull(cms_whatsapp_url(''));
     }
 
@@ -56,7 +56,7 @@ class SettingsTest extends TestCase
 
         Livewire::test(EditSettings::class)
             ->fillForm([
-                'business.name' => 'ROC - Adam Shop',
+                'business.name' => 'Kedai Contoh',
                 'contact.map_url' => 'data://text/html,hello',
                 'social.links' => [['platform' => 'facebook', 'url' => 'ftp://example.com/page']],
             ])

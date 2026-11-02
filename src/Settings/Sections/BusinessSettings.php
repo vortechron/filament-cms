@@ -18,6 +18,7 @@ class BusinessSettings extends SettingsSection
         return [
             TextInput::make('name')->label(__('filament-cms::settings.name'))->required()->maxLength(120),
             TextInput::make('tagline')->label(__('filament-cms::settings.tagline'))->maxLength(160),
+            TextInput::make('legal_name')->label(__('filament-cms::settings.legal_name'))->maxLength(160),
             TextInput::make('registration_number')->label(__('filament-cms::settings.registration_number'))->maxLength(40),
             CmsImage::make('logo')->label(__('filament-cms::settings.logo')),
         ];

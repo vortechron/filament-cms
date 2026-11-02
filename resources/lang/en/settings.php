@@ -5,6 +5,7 @@ return [
     'business' => 'Business',
     'name' => 'Business name',
     'tagline' => 'Short tagline',
+    'legal_name' => 'Registered company name',
     'registration_number' => 'Registration number (SSM)',
     'logo' => 'Logo',
     'contact' => 'Contact',

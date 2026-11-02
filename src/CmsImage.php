@@ -14,6 +14,8 @@ class CmsImage
     {
         return FileUpload::make($name)
             ->image()
+            // SVG files can carry script, and the photos are served from the site's own domain.
+            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
             ->disk(config('filament-cms.disk', 'public'))
             ->directory('cms')
             ->visibility('public')

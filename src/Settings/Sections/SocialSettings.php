@@ -4,7 +4,7 @@ namespace Vortechron\FilamentCms\Settings\Sections;
 
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
+use Vortechron\FilamentCms\CmsUrl;
 use Vortechron\FilamentCms\Settings\SettingsSection;
 
 class SocialSettings extends SettingsSection
@@ -32,7 +32,7 @@ class SocialSettings extends SettingsSection
                 ->hiddenLabel()
                 ->schema([
                     Select::make('platform')->label(__('filament-cms::settings.platform'))->options(self::PLATFORMS)->required(),
-                    TextInput::make('url')->label(__('filament-cms::settings.url'))->url()->required()->rule('url:http,https')->maxLength(500),
+                    CmsUrl::make('url')->label(__('filament-cms::settings.url'))->required(),
                 ])
                 ->columns(2)
                 ->maxItems(8)

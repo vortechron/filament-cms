@@ -43,7 +43,7 @@ if (! function_exists('cms_image')) {
 if (! function_exists('cms_whatsapp_url')) {
     /**
      * A wa.me link from a phone number as people write it in Malaysia:
-     * "011-2705 1612" becomes https://wa.me/601127051612.
+     * "012-345 6789" becomes https://wa.me/60123456789.
      */
     function cms_whatsapp_url(?string $number, ?string $text = null): ?string
     {
@@ -58,5 +58,22 @@ if (! function_exists('cms_whatsapp_url')) {
         }
 
         return 'https://wa.me/'.$digits.(filled($text) ? '?text='.rawurlencode($text) : '');
+    }
+}
+
+if (! function_exists('cms_url')) {
+    /**
+     * A link the client typed, or null unless it is an http or https
+     * address. Use it for every client link printed in an href.
+     */
+    function cms_url(mixed $url): ?string
+    {
+        if (! is_string($url)) {
+            return null;
+        }
+
+        $url = trim($url);
+
+        return preg_match('#^https?://[^/\s]#i', $url) === 1 ? $url : null;
     }
 }

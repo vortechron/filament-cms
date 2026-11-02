@@ -5,6 +5,7 @@ return [
     'business' => 'Perniagaan',
     'name' => 'Nama perniagaan',
     'tagline' => 'Ayat ringkas',
+    'legal_name' => 'Nama syarikat berdaftar',
     'registration_number' => 'No. pendaftaran (SSM)',
     'logo' => 'Logo',
     'contact' => 'Hubungi',

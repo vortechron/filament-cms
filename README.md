@@ -86,7 +86,9 @@ Register it in `config/filament-cms.php`:
 'pages' => [App\Cms\HomePage::class],
 ```
 
-Any link field a client fills in should allow only web addresses: `TextInput::make('url')->url()->rule('url:http,https')`. Laravel's plain `url` rule also accepts schemes such as `data://` and `ftp://`.
+For a link the client fills in, use `CmsUrl::make('url')`: it accepts only http and https (Laravel's plain `url` rule also accepts `data://` and `ftp://`). Print it with `cms_url($value)`, which returns null for anything else.
+
+For a photo, use `CmsImage::make('photo')`. It accepts JPEG, PNG, WebP and GIF (no SVG, which can carry script) and shrinks the photo in the browser. Raise PHP's `upload_max_filesize` above its 2 MB default anyway, for example in `public/.user.ini`.
 
 ## Read it in Blade
 
@@ -103,6 +105,7 @@ Any link field a client fills in should allow only web addresses: `TextInput::ma
 @endif
 
 <img src="{{ $page->section('hero')->image('photo') }}" alt="">
+<a href="{{ cms_url(cms_settings()->section('contact')->map_url) }}">Google Maps</a>
 <a href="{{ cms_whatsapp_url(cms_settings()->section('contact')->phones[0] ?? null, 'Salam') }}">WhatsApp</a>
 ```
 
@@ -127,7 +130,7 @@ class SiteSettings extends StandardSettings
 {
     public function defaults(): array
     {
-        return ['business' => ['name' => 'ROC - Adam Shop'], 'contact' => ['phones' => ['011-2705 1612']]];
+        return ['business' => ['name' => 'Kedai Contoh'], 'contact' => ['phones' => ['012-345 6789']]];
     }
 }
 ```
