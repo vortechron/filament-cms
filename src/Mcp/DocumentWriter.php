@@ -14,12 +14,6 @@ use Vortechron\FilamentCms\Models\Document;
  */
 final class DocumentWriter
 {
-    /**
-     * The kinds the document and section tools edit as page values. The kit
-     * and entries have their own tools.
-     */
-    public const PAGE_KINDS = [Document::PAGE, Document::HEADER, Document::FOOTER, Document::SECTION, Document::TEMPLATE, Document::CARD, Document::SINGLE];
-
     public function __construct(private readonly DocumentStore $store) {}
 
     /**

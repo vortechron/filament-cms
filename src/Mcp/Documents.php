@@ -2,7 +2,9 @@
 
 namespace Vortechron\FilamentCms\Mcp;
 
+use Closure;
 use Laravel\Mcp\ResponseFactory;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Models\Document;
 
 /**
@@ -38,9 +40,9 @@ final class Documents
      * The document with this id when it is of one of the kinds, or the
      * refusal under `$key`.
      *
-     * @param  list<string>  $kinds
+     * @param  (Closure(CmsKind): bool)|null  $kinds  which kinds the tool takes; null: all
      */
-    public static function byId(mixed $id, string $key, array $kinds = Document::KINDS): Document|ResponseFactory
+    public static function byId(mixed $id, string $key, ?Closure $kinds = null): Document|ResponseFactory
     {
         $document = is_int($id) || (is_string($id) && ctype_digit($id)) ? Document::query()->find((int) $id) : null;
 
@@ -48,15 +50,13 @@ final class Documents
             return Reply::refuse($key, 'There is no document with id '.json_encode($id).'.');
         }
 
-        if (in_array($document->kind, $kinds, true)) {
+        $kind = $document->cmsKind();
+
+        if ($kind !== null && ($kinds === null || $kinds($kind))) {
             return $document;
         }
 
-        $hint = match ($document->kind) {
-            Document::KIT => ' It is the design kit: use get_kit and save_kit.',
-            Document::ENTRY => ' It is an entry: use the entry tools.',
-            default => '',
-        };
+        $hint = $kind?->mcpTools() === null ? '' : " Use {$kind->mcpTools()}.";
 
         return Reply::refuse($key, "Document {$document->getKey()} is of kind {$document->kind}, which this tool does not change.{$hint}");
     }

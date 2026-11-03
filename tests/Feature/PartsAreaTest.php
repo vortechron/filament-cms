@@ -20,7 +20,7 @@ class PartsAreaTest extends TestCase
             ->assertOk()
             ->assertSeeInOrder(['Header &amp; footer', 'Header', e(BuildSitePage::getUrl(['record' => 'header'])), 'Footer', e(BuildSitePage::getUrl(['record' => 'footer']))], false);
 
-        $this->assertSame(0, Document::query()->whereIn('kind', Document::PARTS)->count());
+        $this->assertSame(0, Document::query()->whereIn('kind', [Document::HEADER, Document::FOOTER])->count());
     }
 
     public function test_the_area_is_hidden_when_parts_are_switched_off(): void

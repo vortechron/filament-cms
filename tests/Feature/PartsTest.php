@@ -38,7 +38,7 @@ class PartsTest extends TestCase
         $this->page();
 
         $this->get('/tentang')->assertOk()->assertDontSee('data-part', false);
-        $this->assertSame(0, Document::query()->whereIn('kind', Document::PARTS)->count());
+        $this->assertSame(0, Document::query()->whereIn('kind', [Document::HEADER, Document::FOOTER])->count());
     }
 
     public function test_the_header_and_footer_are_drawn_around_every_page(): void

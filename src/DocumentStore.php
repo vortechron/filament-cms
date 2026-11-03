@@ -25,11 +25,6 @@ use Vortechron\FilamentCms\Models\Document;
 final class DocumentStore
 {
     /**
-     * Kinds that hold exactly one rich section (or none yet).
-     */
-    private const ONE_SECTION = [Document::SECTION, Document::TEMPLATE];
-
-    /**
      * @param  array<mixed>  $value  a page value of any format, a kit for kind "kit", or for kind "entry" `fields` and/or `sections` (see EntryContent)
      * @param  bool|null  $developer  who may change locks; null asks the panel's plugin (false outside a panel)
      * @return array{ok: bool, errors?: array<string, string>}
@@ -110,7 +105,7 @@ final class DocumentStore
         $upgraded = PageValue::upgrade($value);
         $errors = self::errors(['value' => $upgraded], PageValue::rules('value'), 'value');
 
-        if ($errors === [] && in_array($document->kind, self::ONE_SECTION, true)) {
+        if ($errors === [] && $document->cmsKind()?->holdsOneSection() === true) {
             $sections = $upgraded['sections'];
 
             if (count($sections) > 1 || (isset($sections[0]) && ($sections[0]['type'] ?? null) !== PageContent::TYPE)) {

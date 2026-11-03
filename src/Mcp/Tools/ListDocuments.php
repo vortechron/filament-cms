@@ -10,6 +10,7 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Mcp\DocumentInfo;
 use Vortechron\FilamentCms\Mcp\Input;
 use Vortechron\FilamentCms\Mcp\Reply;
@@ -22,8 +23,8 @@ class ListDocuments extends Tool
 {
     public function handle(Request $request): ResponseFactory
     {
-        $errors = Input::errors($request->all(), ['kind' => ['nullable', 'string', Rule::in(Document::KINDS)]], [
-            'kind.in' => 'The kind must be one of: '.implode(', ', Document::KINDS).'.',
+        $errors = Input::errors($request->all(), ['kind' => ['nullable', 'string', Rule::in(CmsKind::values())]], [
+            'kind.in' => 'The kind must be one of: '.implode(', ', CmsKind::values()).'.',
         ]);
 
         if ($errors !== []) {
@@ -41,7 +42,7 @@ class ListDocuments extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'kind' => $schema->string()->enum(Document::KINDS)->description('Only documents of this kind. Leave it out for all of them.'),
+            'kind' => $schema->string()->enum(CmsKind::values())->description('Only documents of this kind. Leave it out for all of them.'),
         ];
     }
 }

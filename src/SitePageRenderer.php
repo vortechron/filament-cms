@@ -58,7 +58,7 @@ final class SitePageRenderer
         $values = [...self::pageValues($home), ...$values];
         $context = new RenderContext(forBuilder: true, isPreview: true, values: $values);
         $edited = '<div class="sf-page" data-preview>'.$this->pages->render($sections, $context).'</div>';
-        $isPart = in_array($document->kind, Document::PARTS, true);
+        $isPart = $document->cmsKind()?->isPart() === true;
 
         return $this->pageView($home, $isPart ? $home->sections : $sections, $context, [
             'content' => $isPart ? self::wrap('page', $this->pages->render($home->sections, new RenderContext(values: $values))) : $this->pages->render($sections, $context),

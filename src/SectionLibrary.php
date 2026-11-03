@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Models\Document;
 
 /**
@@ -19,11 +20,6 @@ final class SectionLibrary
      * The builder's category of saved sections.
      */
     public const CATEGORY = 'saved';
-
-    /**
-     * Kinds whose content may hold refs to a synced section.
-     */
-    private const USERS = [Document::PAGE, Document::HEADER, Document::FOOTER, Document::CARD, Document::SINGLE, Document::ENTRY];
 
     public function __construct(private readonly DocumentStore $store) {}
 
@@ -77,7 +73,7 @@ final class SectionLibrary
      */
     public function usedBy(Document $synced): Collection
     {
-        return Document::query()->whereIn('kind', self::USERS)->orderBy('title')->lazy()
+        return Document::query()->whereIn('kind', CmsKind::values(fn (CmsKind $kind): bool => $kind->mayShowSynced()))->orderBy('title')->lazy()
             ->filter(fn (Document $document): bool => collect($document->contentSections())
                 ->contains(fn (array $section): bool => $section['type'] === PageContent::REF && (string) $section['ref'] === (string) $synced->getKey()))
             ->values()

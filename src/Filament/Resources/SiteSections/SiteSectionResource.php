@@ -13,6 +13,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\Filament\Resources\SiteSections\Pages\ManageSiteSections;
 use Vortechron\FilamentCms\Models\Document;
@@ -40,7 +41,7 @@ class SiteSectionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->whereIn('kind', [Document::SECTION, Document::TEMPLATE]);
+        return parent::getEloquentQuery()->whereIn('kind', CmsKind::values(fn (CmsKind $kind): bool => $kind->holdsOneSection()));
     }
 
     public static function getNavigationGroup(): ?string
@@ -76,7 +77,7 @@ class SiteSectionResource extends Resource
                     ->label(__('filament-cms::sections.kind'))
                     ->badge()
                     ->color(fn (string $state): string => $state === Document::SECTION ? 'primary' : 'gray')
-                    ->formatStateUsing(fn (string $state): string => __($state === Document::SECTION ? 'filament-cms::sections.synced' : 'filament-cms::sections.template')),
+                    ->formatStateUsing(fn (string $state): string => CmsKind::of($state)?->label() ?? $state),
                 TextColumn::make('updated_at')->label(__('filament-cms::pages.updated'))->since()->sortable(),
             ])
             ->recordActions([

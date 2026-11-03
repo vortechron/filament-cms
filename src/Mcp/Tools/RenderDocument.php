@@ -12,6 +12,7 @@ use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Entries\EntryBuilder;
 use Vortechron\FilamentCms\Entries\EntryList;
 use Vortechron\FilamentCms\Entries\EntryPageRenderer;
@@ -37,7 +38,7 @@ class RenderDocument extends Tool
             return Reply::refused($document);
         }
 
-        if ($document->kind === Document::KIT) {
+        if ($document->cmsKind()?->holdsSections() !== true) {
             return Reply::refuse('id', 'The design kit is not drawn on its own. Read it with get_kit.');
         }
 
@@ -48,7 +49,7 @@ class RenderDocument extends Tool
         return Response::text(self::cut(match (true) {
             $document->kind === Document::PAGE => $site->view(SitePage::query()->findOrFail($document->getKey()))->render(),
             $document->kind === Document::ENTRY => $entries->view(Entry::query()->findOrFail($document->getKey()))->render(),
-            in_array($document->kind, Document::PARTS, true) => $site->part($document->kind, SitePageRenderer::homeValues()),
+            $document->cmsKind()->isPart() => $site->part($document->kind, SitePageRenderer::homeValues()),
             default => self::sections($document, $pages),
         }));
     }
@@ -75,12 +76,15 @@ class RenderDocument extends Tool
      */
     private static function isPublic(Document $document): bool
     {
-        if (in_array($document->kind, Document::PARTS, true)) {
+        $kind = $document->cmsKind();
+
+        if ($kind?->isPart() === true) {
             return true;
         }
 
-        return $document->is_published && ($document->kind === Document::PAGE
-            || ($document->kind === Document::ENTRY && EntryBuilder::type($document)?->getPath() !== null));
+        // An entry has a page only while its type is registered with a path.
+        return $kind?->isRoutable() === true && $document->is_published
+            && ($kind !== CmsKind::Entry || EntryBuilder::type($document)?->getPath() !== null);
     }
 
     private static function cut(string $html): string

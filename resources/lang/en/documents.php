@@ -1,8 +1,17 @@
 <?php
 
 return [
-    'header' => 'Header',
-    'footer' => 'Footer',
+    'kinds' => [
+        'page' => 'Page',
+        'header' => 'Header',
+        'footer' => 'Footer',
+        'section' => 'Synced',
+        'template' => 'Template',
+        'kit' => 'Design kit',
+        'card' => 'Card',
+        'single' => 'Entry page',
+        'entry' => 'Entry',
+    ],
     'parts' => 'Header & footer',
     'parts_help' => 'Built once, shown on every page.',
     'parts_off' => 'The header and footer are switched off here.',

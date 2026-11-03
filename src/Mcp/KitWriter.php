@@ -4,6 +4,7 @@ namespace Vortechron\FilamentCms\Mcp;
 
 use Illuminate\Support\Arr;
 use Vortechron\FilamentBlockEditor\Design\Kit;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Models\Document;
 
@@ -31,7 +32,7 @@ final class KitWriter
             return ['ok' => false, 'errors' => self::withoutPrefix($errors)];
         }
 
-        $document = Document::firstOfKind(Document::KIT) ?? new Document(['kind' => Document::KIT, 'title' => 'Kit']);
+        $document = Document::firstOfKind(Document::KIT) ?? new Document(['kind' => Document::KIT, 'title' => CmsKind::Kit->label()]);
         $kit = self::merge(Kit::normalize(is_array($document->content) ? $document->content : []), $changes);
         $errors = self::dropped($changes, Kit::normalize($kit));
 

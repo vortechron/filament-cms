@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
+use Vortechron\FilamentCms\Documents\CmsKind;
 
 /**
  * Everything the client builds in the page builder, one row each: pages,
@@ -28,39 +29,27 @@ use Vortechron\FilamentBlockEditor\Content\PageValue;
  */
 class Document extends Model
 {
-    public const PAGE = 'page';
-
-    public const HEADER = 'header';
-
-    public const FOOTER = 'footer';
-
-    /**
-     * A synced section: one rich section many pages show (`type: ref`).
+    /*
+     * The stored kinds, as strings for queries. What each one is lives in
+     * Documents\CmsKind.
      */
-    public const SECTION = 'section';
+    public const PAGE = CmsKind::Page->value;
 
-    /**
-     * A saved section: a copy the add panel offers as a template.
-     */
-    public const TEMPLATE = 'template';
+    public const HEADER = CmsKind::Header->value;
 
-    public const KIT = 'kit';
+    public const FOOTER = CmsKind::Footer->value;
 
-    /**
-     * How an entry type draws one entry in a list, and its own page.
-     */
-    public const CARD = 'card';
+    public const SECTION = CmsKind::Section->value;
 
-    public const SINGLE = 'single';
+    public const TEMPLATE = CmsKind::Template->value;
 
-    public const ENTRY = 'entry';
+    public const KIT = CmsKind::Kit->value;
 
-    public const KINDS = [self::PAGE, self::HEADER, self::FOOTER, self::SECTION, self::TEMPLATE, self::KIT, self::CARD, self::SINGLE, self::ENTRY];
+    public const CARD = CmsKind::Card->value;
 
-    /**
-     * The kinds the header and footer area builds.
-     */
-    public const PARTS = [self::HEADER, self::FOOTER];
+    public const SINGLE = CmsKind::Single->value;
+
+    public const ENTRY = CmsKind::Entry->value;
 
     protected $table = 'cms_documents';
 
@@ -140,9 +129,17 @@ class Document extends Model
     {
         return self::firstOfKind($kind) ?? static::query()->create([
             'kind' => $kind,
-            'title' => __("filament-cms::documents.{$kind}"),
-            'content' => ['version' => 2, 'sections' => []],
+            'title' => CmsKind::from($kind)->label(),
+            'content' => ['version' => PageValue::VERSION, 'sections' => []],
         ]);
+    }
+
+    /**
+     * What kind of document it is, or null for a kind this version does not know.
+     */
+    public function cmsKind(): ?CmsKind
+    {
+        return CmsKind::of($this->kind);
     }
 
     /**
@@ -162,7 +159,7 @@ class Document extends Model
      */
     public function contentSections(): array
     {
-        return self::sectionsOf($this->kind === self::KIT ? null : $this->content);
+        return self::sectionsOf($this->cmsKind()?->holdsSections() === false ? null : $this->content);
     }
 
     /**

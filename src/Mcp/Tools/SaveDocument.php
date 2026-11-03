@@ -8,6 +8,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Mcp\Documents;
 use Vortechron\FilamentCms\Mcp\DocumentWriter;
 use Vortechron\FilamentCms\Mcp\Reply;
@@ -18,7 +19,7 @@ class SaveDocument extends Tool
 {
     public function handle(Request $request, DocumentWriter $writer): ResponseFactory
     {
-        $document = Documents::byId($request->get('id'), 'id', DocumentWriter::PAGE_KINDS);
+        $document = Documents::byId($request->get('id'), 'id', fn (CmsKind $kind): bool => $kind->mcpTools() === null);
 
         if ($document instanceof ResponseFactory) {
             return $document;

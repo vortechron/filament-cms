@@ -9,6 +9,7 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Mcp\DocumentInfo;
 use Vortechron\FilamentCms\Mcp\Documents;
 use Vortechron\FilamentCms\Mcp\Reply;
@@ -46,12 +47,13 @@ class DeleteDocument extends Tool
 
     private static function refusal(Document $document): ?string
     {
+        $kind = $document->cmsKind();
+
         return match (true) {
-            $document->kind === Document::PAGE && $document->path === '/' => 'The home page cannot be deleted. Change it with save_document instead.',
-            in_array($document->kind, Document::PARTS, true) => "The {$document->kind} cannot be deleted. Empty it with save_document instead.",
-            $document->kind === Document::KIT => 'The design kit cannot be deleted. Change it with save_kit instead.',
-            $document->kind === Document::ENTRY => 'This is an entry. Delete it with delete_entry.',
-            default => null,
+            $kind === CmsKind::Page && $document->path === '/' => 'The home page cannot be deleted. Change it with save_document instead.',
+            $kind?->mcpDeletable() === true => null,
+            $kind?->mcpTools() !== null => "Document {$document->getKey()} is of kind {$kind->value}, which this tool does not delete. Use {$kind->mcpTools()}.",
+            default => "The {$document->kind} cannot be deleted. Empty it with save_document instead.",
         };
     }
 

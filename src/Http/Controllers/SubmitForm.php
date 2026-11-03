@@ -4,6 +4,7 @@ namespace Vortechron\FilamentCms\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Forms\FormSubmissionHandler;
 use Vortechron\FilamentCms\Models\Document;
 
@@ -18,7 +19,7 @@ class SubmitForm
         abort_unless(ctype_digit($document), 404);
 
         $model = Document::query()
-            ->whereIn('kind', [Document::PAGE, Document::ENTRY])
+            ->whereIn('kind', CmsKind::values(fn (CmsKind $kind): bool => $kind->isRoutable()))
             ->published()
             ->whereKey((int) $document)
             ->firstOrFail();

@@ -1,8 +1,17 @@
 <?php
 
 return [
-    'header' => 'Header',
-    'footer' => 'Footer',
+    'kinds' => [
+        'page' => 'Halaman',
+        'header' => 'Header',
+        'footer' => 'Footer',
+        'section' => 'Segerak',
+        'template' => 'Templat',
+        'kit' => 'Reka bentuk',
+        'card' => 'Kad',
+        'single' => 'Halaman entri',
+        'entry' => 'Entri',
+    ],
     'parts' => 'Header & footer',
     'parts_help' => 'Dibina sekali, dipaparkan di semua halaman.',
     'parts_off' => 'Header dan footer tidak dihidupkan di sini.',

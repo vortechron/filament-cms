@@ -17,14 +17,12 @@ use Vortechron\FilamentCms\SitePageRenderer;
  */
 final class EntryBuilder
 {
-    public const KINDS = [Document::ENTRY, Document::CARD, Document::SINGLE];
-
     /**
      * The type of an entry, card or single, when it is registered.
      */
     public static function type(Document $document): ?EntryType
     {
-        return in_array($document->kind, self::KINDS, true) ? app(EntryTypes::class)->get($document->entry_type) : null;
+        return $document->cmsKind()?->belongsToEntryType() === true ? app(EntryTypes::class)->get($document->entry_type) : null;
     }
 
     /**

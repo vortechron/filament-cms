@@ -6,6 +6,7 @@ use Closure;
 use Laravel\Mcp\ResponseFactory;
 use Vortechron\FilamentBlockEditor\BlockNote\BlockNoteDocument;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Entries\EntryBuilder;
 use Vortechron\FilamentCms\Models\Document;
 
@@ -24,7 +25,7 @@ final class SectionEditor
      */
     public static function document(mixed $id): Document|ResponseFactory
     {
-        $document = Documents::byId($id, 'document_id', [...DocumentWriter::PAGE_KINDS, Document::ENTRY]);
+        $document = Documents::byId($id, 'document_id', fn (CmsKind $kind): bool => $kind->holdsSections());
 
         if ($document instanceof Document && $document->kind === Document::ENTRY && EntryBuilder::type($document)?->hasBody() !== true) {
             return Reply::refuse('document_id', "Entry {$document->getKey()} has no body: its type {$document->entry_type} has none. Change its fields with save_entry.");

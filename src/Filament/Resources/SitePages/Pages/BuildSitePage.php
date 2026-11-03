@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
+use Vortechron\FilamentBlockEditor\Enums\DocumentKind;
 use Vortechron\FilamentBlockEditor\Filament\Concerns\InteractsWithPageBuilder;
+use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Entries\EntryBuilder;
 use Vortechron\FilamentCms\Entries\EntryList;
@@ -46,11 +48,6 @@ class BuildSitePage extends Page
     }
     use InteractsWithRecord;
 
-    /**
-     * The kinds this page builds.
-     */
-    public const KINDS = [Document::PAGE, Document::HEADER, Document::FOOTER, Document::SECTION, Document::TEMPLATE, Document::CARD, Document::SINGLE, Document::ENTRY];
-
     protected static string $resource = SitePageResource::class;
 
     public function mount(int|string $record): void
@@ -61,7 +58,7 @@ class BuildSitePage extends Page
 
     protected function resolveRecord(int|string $key): Model
     {
-        if (in_array($key, Document::PARTS, true)) {
+        if (CmsKind::tryFrom((string) $key)?->isPart() === true) {
             // Check before the part is made, not after.
             abort_unless(self::mayBuild(null), 403);
 
@@ -70,7 +67,7 @@ class BuildSitePage extends Page
 
         $document = SitePage::query()->find($key)
             ?? Entry::query()->find($key)
-            ?? Document::query()->whereIn('kind', self::KINDS)->whereKey($key)->firstOrFail();
+            ?? Document::query()->whereIn('kind', CmsKind::values(fn (CmsKind $kind): bool => $kind->builderKind() !== null))->whereKey($key)->firstOrFail();
 
         abort_unless(EntryBuilder::buildable($document), 404);
 
@@ -98,9 +95,7 @@ class BuildSitePage extends Page
 
     public function getTitle(): string
     {
-        return in_array($this->record->kind, Document::PARTS, true)
-            ? __("filament-cms::documents.{$this->record->kind}")
-            : (string) $this->record->title;
+        return $this->record->cmsKind()?->isPart() === true ? $this->record->cmsKind()->label() : (string) $this->record->title;
     }
 
     /**
@@ -181,7 +176,7 @@ class BuildSitePage extends Page
             return $entries;
         }
 
-        return in_array($this->record->kind, [Document::SECTION, Document::TEMPLATE], true) && $this->plugin()->hasSections()
+        return $this->record->cmsKind()?->holdsOneSection() === true && $this->plugin()->hasSections()
             ? SiteSectionResource::getUrl()
             : SitePageResource::getUrl();
     }
@@ -192,16 +187,12 @@ class BuildSitePage extends Page
     }
 
     /**
-     * The builder knows no "entry" or "template" kind: an entry's body is
+     * The builder's kind for it (CmsKind::builderKind()): an entry's body is
      * built as a page, a saved section as one section.
      */
     protected function getPageBuilderKind(): string
     {
-        return match ($this->record->kind) {
-            Document::ENTRY => Document::PAGE,
-            Document::TEMPLATE => Document::SECTION,
-            default => $this->record->kind,
-        };
+        return ($this->record->cmsKind()?->builderKind() ?? DocumentKind::Page)->value;
     }
 
     /**
@@ -237,7 +228,7 @@ class BuildSitePage extends Page
 
     protected function savePageBuilderKit(array $kit): void
     {
-        $this->saveThroughStore(Document::firstOfKind(Document::KIT) ?? new Document(['kind' => Document::KIT, 'title' => 'Kit']), $kit);
+        $this->saveThroughStore(Document::firstOfKind(Document::KIT) ?? new Document(['kind' => Document::KIT, 'title' => CmsKind::Kit->label()]), $kit);
     }
 
     protected function getPageBuilderParts(): array
@@ -246,11 +237,11 @@ class BuildSitePage extends Page
             return [];
         }
 
-        return array_map(fn (string $kind): array => [
-            'key' => $kind,
-            'title' => __("filament-cms::documents.{$kind}"),
-            'editUrl' => static::getUrl(['record' => $kind]),
-        ], Document::PARTS);
+        return array_map(fn (CmsKind $kind): array => [
+            'key' => $kind->value,
+            'title' => $kind->label(),
+            'editUrl' => static::getUrl(['record' => $kind->value]),
+        ], CmsKind::parts());
     }
 
     protected function getPageBuilderSiteInfo(): ?array
