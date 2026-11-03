@@ -147,6 +147,23 @@ public function builderRules(): array
 }
 ```
 
+A block that shows a `site.*` value gets that shop info group in its panel, and the preview redraws while the
+owner types, before saving. The unsaved values are cleaned like a save (a value that fails the checks shows the
+stored one) and are never saved by the preview. The preview draws inside `Cms::withSettings()`, which you can use
+too: everything that reads the settings (`cms_settings()`, the `site.*` values, the builder's shop info) sees the
+given settings until the closure ends, also when it throws.
+
+```php
+$html = app(Cms::class)->withSettings($settings, fn (): string => view('site.header')->render());
+```
+
+`Vortechron\FilamentCms\Events\SettingsOverridden` fires when the settings change and when the stored ones come
+back (`$event->settings` is `null` then). If your site keeps the settings for the request, forget that copy there:
+
+```php
+Event::listen(SettingsOverridden::class, fn () => app()->forgetInstance(App\Cms\SiteInfo::class));
+```
+
 ### Dynamic values
 
 The builder can put the shop's details into text, links and pictures; they are read when the page is drawn, so a
@@ -158,7 +175,13 @@ change in Tetapan shows everywhere at once:
 | Link | `site.whatsapp` (wa.me), `site.phone_link` (tel:), `site.email_link` (mailto:), `site.map`, `site.facebook`, `site.instagram`, `site.tiktok`, `site.threads`, `site.x`, `site.youtube`, `site.shopee`, `site.lazada`, `page.url` |
 | Picture | `site.logo` |
 
-Read one in Blade with `app(DynamicValues::class)->resolve('site.phone', $context)`.
+Read one in Blade with `app(DynamicValues::class)->resolve('site.phone', $context)`. Each `site.*` value names
+the shop info group it comes from (`business`, `contact`, `hours`, `social`). A value of your own does it with
+`settings:`, so the builder shows that group where it is used:
+
+```php
+app(DynamicValues::class)->register('site.area', 'Kawasan', fn () => cms_settings()->section('delivery')->area, settings: 'delivery');
+```
 
 ### Forms
 
