@@ -16,6 +16,7 @@ use Vortechron\FilamentCms\Mcp\Tools\ListVersions;
 use Vortechron\FilamentCms\Mcp\Tools\MoveSection;
 use Vortechron\FilamentCms\Mcp\Tools\PageFormat;
 use Vortechron\FilamentCms\Mcp\Tools\RemoveSection;
+use Vortechron\FilamentCms\Mcp\Tools\RenderDocument;
 use Vortechron\FilamentCms\Mcp\Tools\RestoreVersion;
 use Vortechron\FilamentCms\Mcp\Tools\SaveDocument;
 use Vortechron\FilamentCms\Mcp\Tools\SaveKit;
@@ -57,6 +58,7 @@ class CmsServer extends Server
         SaveSettings::class,
         ListVersions::class,
         RestoreVersion::class,
+        RenderDocument::class,
     ];
 
     protected function boot(): void
