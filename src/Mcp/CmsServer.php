@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Mcp;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
+use Vortechron\FilamentCms\Mcp\Tools\PageFormat;
 use Vortechron\FilamentCms\Mcp\Tools\SiteOverview;
 
 /**
@@ -25,6 +26,7 @@ class CmsServer extends Server
 
     protected array $tools = [
         SiteOverview::class,
+        PageFormat::class,
     ];
 
     protected function boot(): void

@@ -7,6 +7,8 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Vortechron\FilamentBlockEditor\Content\DynamicValues;
 use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
+use Vortechron\FilamentCms\Mcp\Contracts\McpEntries;
+use Vortechron\FilamentCms\Mcp\Entries\NoEntries;
 
 class FilamentCmsServiceProvider extends PackageServiceProvider
 {
@@ -29,6 +31,9 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
 
         // Synced sections are documents of kind "section".
         $this->app->bind(SectionResolver::class, CmsSectionResolver::class);
+
+        // What the MCP server reads and writes entries with; none until entry types exist.
+        $this->app->bind(McpEntries::class, NoEntries::class);
     }
 
     public function packageBooted(): void
