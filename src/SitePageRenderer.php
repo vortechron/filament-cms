@@ -19,7 +19,7 @@ final class SitePageRenderer
      */
     public function view(SitePage $page, ?array $sections = null, bool $forBuilder = false): View
     {
-        $context = new RenderContext(forBuilder: $forBuilder, isPreview: $forBuilder);
+        $context = new RenderContext(forBuilder: $forBuilder, isPreview: $forBuilder, values: self::pageValues($page));
         $sections ??= $page->sections ?? [];
 
         return view(config('filament-cms.page_view', 'cms.page'), [
@@ -29,5 +29,15 @@ final class SitePageRenderer
             'content' => app(PageRenderer::class)->render($sections, $context),
             'isBuilderPreview' => $forBuilder,
         ]);
+    }
+
+    /**
+     * The page.* dynamic values of a page.
+     *
+     * @return array<string, string>
+     */
+    public static function pageValues(SitePage $page): array
+    {
+        return ['page.title' => (string) $page->title, 'page.url' => $page->url()];
     }
 }

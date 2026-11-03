@@ -4,6 +4,7 @@ namespace Vortechron\FilamentCms;
 
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Vortechron\FilamentBlockEditor\Content\DynamicValues;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
 
 class FilamentCmsServiceProvider extends PackageServiceProvider
@@ -29,5 +30,8 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // site.* and page.* values; each one reads the settings when drawn.
+        $this->callAfterResolving(DynamicValues::class, SiteValues::register(...));
     }
 }

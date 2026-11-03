@@ -53,12 +53,12 @@ if (! function_exists('cms_image')) {
     }
 }
 
-if (! function_exists('cms_whatsapp_url')) {
+if (! function_exists('cms_whatsapp_number')) {
     /**
-     * A wa.me link from a phone number as people write it in Malaysia:
-     * "012-345 6789" becomes https://wa.me/60123456789.
+     * A phone number as people write it in Malaysia, in the international
+     * digits WhatsApp uses: "012-345 6789" becomes 60123456789.
      */
-    function cms_whatsapp_url(?string $number, ?string $text = null): ?string
+    function cms_whatsapp_number(?string $number): ?string
     {
         $digits = preg_replace('/\D+/', '', (string) $number);
 
@@ -66,11 +66,20 @@ if (! function_exists('cms_whatsapp_url')) {
             return null;
         }
 
-        if (str_starts_with($digits, '0')) {
-            $digits = '6'.$digits;
-        }
+        return str_starts_with($digits, '0') ? '6'.$digits : $digits;
+    }
+}
 
-        return 'https://wa.me/'.$digits.(filled($text) ? '?text='.rawurlencode($text) : '');
+if (! function_exists('cms_whatsapp_url')) {
+    /**
+     * A wa.me link from a phone number as people write it in Malaysia:
+     * "012-345 6789" becomes https://wa.me/60123456789.
+     */
+    function cms_whatsapp_url(?string $number, ?string $text = null): ?string
+    {
+        $digits = cms_whatsapp_number($number);
+
+        return $digits === null ? null : 'https://wa.me/'.$digits.(filled($text) ? '?text='.rawurlencode($text) : '');
     }
 }
 
