@@ -15,6 +15,7 @@ use Vortechron\FilamentCms\Settings\SettingsSection;
  * save from there is checked with each section's builderRules(), cleaned
  * by its fields, and saved through the same ContentStore as the Tetapan
  * screen, so it keeps a version. Keys the builder does not show are kept.
+ * previewSettings() cleans unsaved values the same way for the preview.
  *
  * Picture fields (the logo) are paths on the CMS disk. The builder gets
  * their address. A new picture must be a JPG, PNG, WebP or GIF directly in
@@ -66,29 +67,50 @@ final class SiteInfo
                 continue;
             }
 
-            $fields = $section->builderFields();
-            $names = array_flip(array_map(fn (Field $field): string => $field->name, $fields));
-            $input = [...$this->builderValues($section, $saved), ...array_intersect_key($values[$key], $names)];
-            $groupErrors = self::check($input, $section->builderRules(), $fields);
-            $clean = Field::cleanFields($fields, $input);
-            $clean = $this->pictures($fields, $clean, $saved[$key] ?? [], $groupErrors);
+            ['values' => $changes[$key], 'errors' => $groupErrors] = $this->clean($section, $values[$key], $saved);
 
             foreach ($groupErrors as $field => $message) {
                 $errors["{$key}.{$field}"] = $message;
             }
-
-            $changes[$key] = $section->fromBuilderValues(self::emptyAsNull($fields, $clean));
         }
 
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
 
-        foreach ($changes as $key => $change) {
-            $saved[$key] = [...(is_array($saved[$key] ?? null) ? $saved[$key] : []), ...$change];
+        $this->store->save(Cms::SETTINGS, self::merged($saved, $changes), $user);
+    }
+
+    /**
+     * The whole settings content with the builder's unsaved shop info
+     * cleaned as save() cleans it and merged over the stored settings, for
+     * a preview (Cms::withSettings()). A field that fails the checks keeps
+     * its stored value; the other fields still show. Nothing is saved.
+     *
+     * @param  array<string, mixed>  $values  by group, as the builder sends them
+     * @return array<string, array<string, mixed>>
+     */
+    public function previewSettings(array $values): array
+    {
+        $saved = $this->cms->saved(Cms::SETTINGS);
+        $changes = [];
+
+        foreach ($this->sections() as $key => $section) {
+            if (! is_array($values[$key] ?? null)) {
+                continue;
+            }
+
+            $result = $this->clean($section, $values[$key], $saved);
+
+            if ($result['errors'] !== []) {
+                $failed = array_map(fn (string $path): string => explode('.', $path)[0], array_keys($result['errors']));
+                $result = $this->clean($section, array_diff_key($values[$key], array_flip($failed)), $saved);
+            }
+
+            $changes[$key] = $result['values'];
         }
 
-        $this->store->save(Cms::SETTINGS, $saved, $user);
+        return self::merged($saved, $changes);
     }
 
     /**
@@ -109,6 +131,42 @@ final class SiteInfo
         }
 
         return $sections;
+    }
+
+    /**
+     * One group as the builder sent it, checked and cleaned as it is saved.
+     * Fields the builder does not show keep their stored value.
+     *
+     * @param  array<mixed>  $submitted
+     * @param  array<string, mixed>  $saved
+     * @return array{values: array<string, mixed>, errors: array<string, string>}
+     */
+    private function clean(SettingsSection $section, array $submitted, array $saved): array
+    {
+        $fields = $section->builderFields();
+        $names = array_flip(array_map(fn (Field $field): string => $field->name, $fields));
+        $input = [...$this->builderValues($section, $saved), ...array_intersect_key($submitted, $names)];
+        $errors = self::check($input, $section->builderRules(), $fields);
+        $clean = $this->pictures($fields, Field::cleanFields($fields, $input), $saved[$section->key] ?? [], $errors);
+
+        return ['values' => $section->fromBuilderValues(self::emptyAsNull($fields, $clean)), 'errors' => $errors];
+    }
+
+    /**
+     * The stored settings with each group's changes over it; keys the
+     * builder does not show are kept.
+     *
+     * @param  array<string, mixed>  $saved
+     * @param  array<string, array<string, mixed>>  $changes
+     * @return array<string, array<string, mixed>>
+     */
+    private static function merged(array $saved, array $changes): array
+    {
+        foreach ($changes as $key => $change) {
+            $saved[$key] = [...(is_array($saved[$key] ?? null) ? $saved[$key] : []), ...$change];
+        }
+
+        return $saved;
     }
 
     /**
