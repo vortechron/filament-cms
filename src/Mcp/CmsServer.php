@@ -8,10 +8,14 @@ use Laravel\Mcp\Server\Attributes\Version;
 use Vortechron\FilamentCms\Mcp\Tools\CreateDocument;
 use Vortechron\FilamentCms\Mcp\Tools\DeleteDocument;
 use Vortechron\FilamentCms\Mcp\Tools\GetDocument;
+use Vortechron\FilamentCms\Mcp\Tools\InsertSection;
 use Vortechron\FilamentCms\Mcp\Tools\ListDocuments;
+use Vortechron\FilamentCms\Mcp\Tools\MoveSection;
 use Vortechron\FilamentCms\Mcp\Tools\PageFormat;
+use Vortechron\FilamentCms\Mcp\Tools\RemoveSection;
 use Vortechron\FilamentCms\Mcp\Tools\SaveDocument;
 use Vortechron\FilamentCms\Mcp\Tools\SiteOverview;
+use Vortechron\FilamentCms\Mcp\Tools\UpdateSection;
 
 /**
  * The site's MCP server: an AI agent reads and edits the site's content
@@ -37,6 +41,10 @@ class CmsServer extends Server
         CreateDocument::class,
         SaveDocument::class,
         DeleteDocument::class,
+        UpdateSection::class,
+        InsertSection::class,
+        MoveSection::class,
+        RemoveSection::class,
     ];
 
     protected function boot(): void
