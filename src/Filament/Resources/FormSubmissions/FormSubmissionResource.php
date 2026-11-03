@@ -36,7 +36,17 @@ class FormSubmissionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInboxArrowDown;
 
-    protected static ?int $navigationSort = -11;
+    /**
+     * In "Kandungan" after the content screens (Halaman -10, Seksyen -9,
+     * entries -8, the editable pages from 0), before Tetapan (100), so the
+     * owner lands on Halaman after login.
+     */
+    protected static ?int $navigationSort = 99;
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('filament-cms::cms.content');
+    }
 
     public static function getModelLabel(): string
     {
