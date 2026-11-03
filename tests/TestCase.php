@@ -17,6 +17,7 @@ use Filament\Tables\TablesServiceProvider;
 use Filament\Widgets\WidgetsServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Kirschbaum\PowerJoins\PowerJoinsServiceProvider;
+use Laravel\Mcp\Server\McpServiceProvider;
 use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\Concerns\WithWorkbench;
 use Orchestra\Testbench\TestCase as Orchestra;
@@ -50,6 +51,7 @@ abstract class TestCase extends Orchestra
             FormsServiceProvider::class,
             InfolistsServiceProvider::class,
             LivewireServiceProvider::class,
+            McpServiceProvider::class,
             NotificationsServiceProvider::class,
             PowerJoinsServiceProvider::class,
             QueryBuilderServiceProvider::class,

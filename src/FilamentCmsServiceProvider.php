@@ -12,6 +12,11 @@ use Vortechron\FilamentCms\Entries\EntryTypes;
 use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
 use Vortechron\FilamentCms\Forms\DnsHostResolver;
 use Vortechron\FilamentCms\Forms\HostResolver;
+use Vortechron\FilamentCms\Mcp\Contracts\McpEntries;
+use Vortechron\FilamentCms\Mcp\Contracts\McpFormSubmissions;
+use Vortechron\FilamentCms\Mcp\Entries\NoEntries;
+use Vortechron\FilamentCms\Mcp\Forms\EloquentFormSubmissions;
+use Vortechron\FilamentCms\Mcp\Forms\NoFormSubmissions;
 
 class FilamentCmsServiceProvider extends PackageServiceProvider
 {
@@ -40,6 +45,14 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
         // Form blocks post to the page they are on (Forms\FormSubmissionHandler).
         $this->app->bind(FormEndpoint::class, CmsFormEndpoint::class);
         $this->app->bindIf(HostResolver::class, DnsHostResolver::class);
+
+        // What the MCP server reads and writes entries with; none until entry types exist.
+        $this->app->bind(McpEntries::class, NoEntries::class);
+
+        // Form submissions, once the forms' model exists.
+        $this->app->bind(McpFormSubmissions::class, fn (): McpFormSubmissions => class_exists(Models\FormSubmission::class)
+            ? new EloquentFormSubmissions(Models\FormSubmission::class)
+            : new NoFormSubmissions);
     }
 
     public function packageBooted(): void

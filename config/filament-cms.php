@@ -33,4 +33,16 @@ return [
     */
     'revisions' => 20,
 
+    /*
+    | The site's MCP server (FilamentCms::mcp() in routes/web.php), so an AI
+    | agent can read and edit the content. `token` is the secret the agent
+    | sends as "Authorization: Bearer <token>"; with no token the address
+    | answers 404. `user` is the email of the user its saved versions are
+    | kept under (null keeps them without a user).
+    */
+    'mcp' => [
+        'token' => env('CMS_MCP_TOKEN'),
+        'user' => env('CMS_MCP_USER'),
+    ],
+
 ];

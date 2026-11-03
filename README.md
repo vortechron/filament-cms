@@ -262,6 +262,44 @@ app(EntryStore::class)->save(new Entry(['entry_type' => 'product']), [
 ], $user);   // ['ok' => true] or ['ok' => false, 'errors' => [...]]
 ```
 
+## MCP: let an AI agent edit the site
+
+Each site can run its own MCP server at `/mcp`, so an AI agent (such as Claude, directly or through an MCP gateway)
+reads and changes the content with no deploy. It acts as a developer, and every write goes through the same store
+as the panel: checked, cleaned, kept as a version. A refused write changes nothing and answers
+`{"ok": false, "errors": {...}}` in plain words.
+
+1. Set a long random token (`openssl rand -hex 32`) in `.env`, and optionally the user its versions are kept under:
+
+   ```dotenv
+   CMS_MCP_TOKEN=<a long random token>
+   CMS_MCP_USER=ai@example.com
+   ```
+
+2. Add the route in `routes/web.php`, before `FilamentCms::routes()`:
+
+   ```php
+   FilamentCms::mcp();      // POST /mcp, or FilamentCms::mcp('/ai/mcp')
+   FilamentCms::routes();
+   ```
+
+   With no token set the address answers 404; a missing or wrong `Authorization: Bearer` token gets 401. It takes
+   60 calls a minute and no CSRF token.
+
+3. Connect a client:
+
+   ```bash
+   claude mcp add --transport http kedai https://kedai.example.com/mcp --header "Authorization: Bearer <CMS_MCP_TOKEN>"
+   ```
+
+The agent starts with `site_overview` and `page_format` (page format 2, generated from the block editor). Tools:
+documents (`list_documents`, `get_document`, `create_document`, `save_document`, `delete_document`), one section
+at a time (`update_section`, `insert_section`, `move_section`, `remove_section`), `get_kit` and `save_kit`,
+`get_settings` and `save_settings`, entries (`list_entries`, `save_entry`, `delete_entry`), form submissions
+(`list_form_submissions`, `update_form_submission`), `list_versions` and `restore_version`, and `render_document`
+(the public HTML). The entry tools need a `Mcp\Contracts\McpEntries` binding; the form tools work once the site
+saves form submissions.
+
 ## A page and its sections
 
 ```php
