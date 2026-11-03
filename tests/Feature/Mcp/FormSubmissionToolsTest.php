@@ -4,6 +4,7 @@ namespace Vortechron\FilamentCms\Tests\Feature\Mcp;
 
 use Vortechron\FilamentCms\Mcp\Contracts\McpFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Forms\EloquentFormSubmissions;
+use Vortechron\FilamentCms\Mcp\Forms\NoFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Tools\ListFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Tools\UpdateFormSubmission;
 use Vortechron\FilamentCms\Tests\Fixtures\FormSubmissionFixture;
@@ -26,6 +27,8 @@ class FormSubmissionToolsTest extends McpTestCase
 
     public function test_without_the_forms_track_the_tools_say_forms_are_not_set_up(): void
     {
+        $this->app->instance(McpFormSubmissions::class, new NoFormSubmissions);
+
         $this->assertRefused($this->runTool(ListFormSubmissions::class), 'forms');
         $this->assertRefused($this->runTool(UpdateFormSubmission::class, ['id' => 1, 'status' => 'read']), 'forms');
     }

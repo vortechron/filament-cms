@@ -7,6 +7,8 @@ use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentBlockEditor\Blocks\OwnBlock;
 use Vortechron\FilamentCms\ContentStore;
 use Vortechron\FilamentCms\DocumentStore;
+use Vortechron\FilamentCms\Mcp\Contracts\McpEntries;
+use Vortechron\FilamentCms\Mcp\Entries\NoEntries;
 use Vortechron\FilamentCms\Mcp\Tools\SiteOverview;
 use Vortechron\FilamentCms\Models\Document;
 
@@ -20,6 +22,7 @@ class SiteOverviewTest extends McpTestCase
         $header = Document::findOrCreatePart(Document::HEADER);
         app(DocumentStore::class)->save(new Document(['kind' => Document::KIT, 'title' => 'Kit']), ['colors' => ['primary' => '#c59d6e']], null, developer: true);
         app(BlockRegistry::class)->register(OwnBlock::make('menu-board')->label('Menu')->fields([Field::text('heading')->default('Menu kami')]));
+        $this->app->instance(McpEntries::class, new NoEntries);
 
         $overview = $this->runTool(SiteOverview::class);
 

@@ -4,6 +4,7 @@ namespace Vortechron\FilamentCms\Tests\Feature\Mcp;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Vortechron\FilamentCms\Mcp\Contracts\McpEntries;
+use Vortechron\FilamentCms\Mcp\Entries\NoEntries;
 use Vortechron\FilamentCms\Mcp\Tools\DeleteEntry;
 use Vortechron\FilamentCms\Mcp\Tools\ListEntries;
 use Vortechron\FilamentCms\Mcp\Tools\SaveEntry;
@@ -71,6 +72,8 @@ class EntryToolsTest extends McpTestCase
 
     public function test_without_entry_types_the_entry_tools_say_entries_are_not_set_up(): void
     {
+        $this->app->instance(McpEntries::class, new NoEntries);
+
         $this->assertRefused($this->runTool(ListEntries::class), 'entries');
         $this->assertRefused($this->runTool(SaveEntry::class, ['type' => 'product', 'title' => 'Kopi']), 'entries');
         $this->assertRefused($this->runTool(DeleteEntry::class, ['id' => 1, 'confirm' => true]), 'entries');
