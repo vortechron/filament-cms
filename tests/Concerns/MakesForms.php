@@ -94,9 +94,10 @@ trait MakesForms
      */
     protected function timestamp(int $secondsAgo = 10): string
     {
-        $this->travel(-$secondsAgo)->seconds();
+        $now = now();
+        $this->travelTo($now->copy()->subSeconds($secondsAgo));
         $timestamp = FormTimestamp::issue();
-        $this->travelBack();
+        $this->travelTo($now);
 
         return $timestamp;
     }

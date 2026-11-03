@@ -4,9 +4,12 @@ namespace Vortechron\FilamentCms\Forms;
 
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
+use Vortechron\FilamentBlockEditor\Forms\FormTimestamp;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\FormSubmission;
 
@@ -19,6 +22,16 @@ final class FormSubmissionHandler
 {
     public const FLASH = 'filament-cms.form_sent';
 
+    /**
+     * A form sent sooner than this after the page was drawn is a bot.
+     */
+    public const MIN_SECONDS = 2;
+
+    /**
+     * Sends a minute from one address to one form.
+     */
+    public const PER_MINUTE = 5;
+
     public function __construct(private readonly FormLocator $locator) {}
 
     public function handle(Document $document, Request $request): Response
@@ -28,6 +41,20 @@ final class FormSubmissionHandler
         abort_if($found === null, 404);
 
         $back = self::pageUrl($document).'#form-'.$found->blockId;
+        $spam = self::spam($request);
+
+        if ($spam !== null) {
+            Log::info("Form submission refused: {$spam}.", ['document' => $document->getKey(), 'form' => $found->key]);
+
+            return redirect()->to($back);
+        }
+
+        if (self::tooMany($request, $found)) {
+            Log::info('Form submission refused: too many sends.', ['document' => $document->getKey(), 'form' => $found->key]);
+
+            return redirect()->to($back)->withErrors(self::formError($found, __('filament-cms::forms.try_again')))->withInput(self::oldInput($found, $request));
+        }
+
         $validator = self::validator($found, $request);
 
         if ($validator->fails()) {
@@ -37,6 +64,55 @@ final class FormSubmissionHandler
         $submission = $this->save($document, $found, $request, self::data($found, $validator->validated()));
 
         return redirect()->to($back)->with(self::FLASH, $found->blockId);
+    }
+
+    /**
+     * Why the send looks like a bot's, or null: the hidden `_website` field
+     * was filled, or `_t` is not one this app signed or is too young.
+     */
+    private static function spam(Request $request): ?string
+    {
+        if ($request->filled('_website')) {
+            return 'honeypot filled';
+        }
+
+        $age = FormTimestamp::age($request->input('_t'));
+
+        return match (true) {
+            $age === null => 'time not valid',
+            $age < self::MIN_SECONDS => 'sent too fast',
+            default => null,
+        };
+    }
+
+    /**
+     * Counts this send. True when the address already sent this form
+     * PER_MINUTE times in the last minute.
+     */
+    private static function tooMany(Request $request, LocatedForm $found): bool
+    {
+        $key = 'filament-cms-form:'.hash('sha256', $request->ip().'|'.$found->blockId);
+
+        if (RateLimiter::tooManyAttempts($key, self::PER_MINUTE)) {
+            return true;
+        }
+
+        RateLimiter::hit($key, 60);
+
+        return false;
+    }
+
+    /**
+     * A message for the whole form, shown under its first field (the form
+     * block shows errors by field only).
+     *
+     * @return array<string, string>
+     */
+    private static function formError(LocatedForm $found, string $message): array
+    {
+        $first = $found->form->fields()[0]['name'] ?? null;
+
+        return ['form.'.$found->blockId.($first === null ? '' : '.'.$first) => $message];
     }
 
     /**

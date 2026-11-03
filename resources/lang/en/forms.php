@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'try_again' => 'Please try again in a moment.',
     'validation' => [
         'required' => 'Please fill in :attribute.',
         'accepted' => 'Please tick :attribute.',

@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'try_again' => 'Cuba lagi sebentar.',
     'validation' => [
         'required' => ':attribute perlu diisi.',
         'accepted' => 'Sila tandakan :attribute.',
