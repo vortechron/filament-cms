@@ -31,4 +31,5 @@ return [
     'seo_description' => 'Description',
     'share_image' => 'Share picture',
     'allow_indexing' => 'Let Google list this website',
+    'picture_here' => 'Choose a picture uploaded here.',
 ];

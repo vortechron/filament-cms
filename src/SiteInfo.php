@@ -1,0 +1,213 @@
+<?php
+
+namespace Vortechron\FilamentCms;
+
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentCms\Settings\SettingsSection;
+
+/**
+ * The shop info the page builder shows next to the header and footer: the
+ * settings sections that declare builderFields(), with their values. A
+ * save from there is checked with each section's builderRules(), cleaned
+ * by its fields, and saved through the same ContentStore as the Tetapan
+ * screen, so it keeps a version. Keys the builder does not show are kept.
+ *
+ * Picture fields (the logo) are paths on the CMS disk. The builder gets
+ * their address, and a new picture must be one uploaded to that disk.
+ */
+final class SiteInfo
+{
+    public function __construct(private readonly Cms $cms, private readonly ContentStore $store) {}
+
+    /**
+     * `['groups' => [['key', 'label', 'fields' => [Field, ...]]], 'values' => [group => [field => value]]]`,
+     * or null when no settings section shows in the builder.
+     *
+     * @return array{groups: list<array{key: string, label: string, fields: list<Field>}>, values: array<string, array<string, mixed>>}|null
+     */
+    public function forBuilder(): ?array
+    {
+        $sections = $this->sections();
+
+        if ($sections === []) {
+            return null;
+        }
+
+        $saved = $this->cms->saved(Cms::SETTINGS);
+        $groups = [];
+        $values = [];
+
+        foreach ($sections as $key => $section) {
+            $groups[] = ['key' => $key, 'label' => $section->label(), 'fields' => $section->builderFields()];
+            $values[$key] = $this->builderValues($section, $saved);
+        }
+
+        return ['groups' => $groups, 'values' => $values];
+    }
+
+    /**
+     * @param  array<string, mixed>  $values  by group, as the builder sends them
+     *
+     * @throws ValidationException with errors keyed "group.field"
+     */
+    public function save(array $values, ?Authenticatable $user): void
+    {
+        $saved = $this->cms->saved(Cms::SETTINGS);
+        $errors = [];
+        $changes = [];
+
+        foreach ($this->sections() as $key => $section) {
+            if (! is_array($values[$key] ?? null)) {
+                continue;
+            }
+
+            $fields = $section->builderFields();
+            $names = array_flip(array_map(fn (Field $field): string => $field->name, $fields));
+            $input = [...$this->builderValues($section, $saved), ...array_intersect_key($values[$key], $names)];
+            $groupErrors = self::check($input, $section->builderRules(), $fields);
+            $clean = Field::cleanFields($fields, $input);
+            $clean = $this->pictures($fields, $clean, $saved[$key] ?? [], $groupErrors);
+
+            foreach ($groupErrors as $field => $message) {
+                $errors["{$key}.{$field}"] = $message;
+            }
+
+            $changes[$key] = $section->fromBuilderValues(self::emptyAsNull($fields, $clean));
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        foreach ($changes as $key => $change) {
+            $saved[$key] = [...(is_array($saved[$key] ?? null) ? $saved[$key] : []), ...$change];
+        }
+
+        $this->store->save(Cms::SETTINGS, $saved, $user);
+    }
+
+    /**
+     * @return array<string, SettingsSection>
+     */
+    private function sections(): array
+    {
+        if (! $this->cms->has(Cms::SETTINGS)) {
+            return [];
+        }
+
+        $sections = [];
+
+        foreach ($this->cms->definition(Cms::SETTINGS)->sections() as $section) {
+            if ($section instanceof SettingsSection && $section->builderFields() !== []) {
+                $sections[$section->key] = $section;
+            }
+        }
+
+        return $sections;
+    }
+
+    /**
+     * The saved values on top of the defaults, as the builder's fields hold them.
+     *
+     * @param  array<string, mixed>  $saved
+     * @return array<string, mixed>
+     */
+    private function builderValues(SettingsSection $section, array $saved): array
+    {
+        $values = $section->toBuilderValues(PageContent::merge($this->cms->definition(Cms::SETTINGS), $section, $saved[$section->key] ?? []));
+
+        foreach ($section->builderFields() as $field) {
+            if ($field->type === 'image') {
+                $values[$field->name] = cms_image($values[$field->name] ?? null);
+            }
+        }
+
+        return Field::cleanFields($section->builderFields(), $values);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @param  array<string, mixed>  $rules
+     * @param  list<Field>  $fields
+     * @return array<string, string>
+     */
+    private static function check(array $input, array $rules, array $fields): array
+    {
+        $attributes = [];
+
+        foreach ($fields as $field) {
+            $field = $field->toArray();
+            $attributes[$field['name']] = $field['label'];
+
+            foreach ($field['fields'] ?? [] as $child) {
+                $attributes["{$field['name']}.*.{$child['name']}"] = $child['label'];
+            }
+        }
+
+        $validator = Validator::make($input, $rules, [], $attributes);
+
+        return $validator->fails()
+            ? array_map(fn (array $messages): string => (string) ($messages[0] ?? ''), $validator->errors()->messages())
+            : [];
+    }
+
+    /**
+     * Each picture as a path on the CMS disk: kept when unchanged, null when
+     * removed, and refused unless it was uploaded to that disk.
+     *
+     * @param  list<Field>  $fields
+     * @param  array<string, mixed>  $clean
+     * @param  array<string, mixed>  $stored
+     * @param  array<string, string>  $errors
+     * @return array<string, mixed>
+     */
+    private function pictures(array $fields, array $clean, array $stored, array &$errors): array
+    {
+        $disk = Storage::disk(config('filament-cms.disk', 'public'));
+        $root = rtrim($disk->url(''), '/').'/';
+
+        foreach ($fields as $field) {
+            $url = $clean[$field->name] ?? null;
+
+            if ($field->type !== 'image' || $url === null || $url === '') {
+                continue;
+            }
+
+            $path = str_starts_with($url, $root) ? rawurldecode(substr($url, strlen($root))) : null;
+
+            $clean[$field->name] = match (true) {
+                $url === cms_image($stored[$field->name] ?? null) => $stored[$field->name],
+                $path !== null && ! str_contains($path, '..') && $disk->exists($path) => $path,
+                default => null,
+            };
+
+            if ($clean[$field->name] === null) {
+                $errors[$field->name] = __('filament-cms::settings.picture_here');
+            }
+        }
+
+        return $clean;
+    }
+
+    /**
+     * An empty text, link or picture is saved as null, as the Tetapan screen does.
+     *
+     * @param  list<Field>  $fields
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    private static function emptyAsNull(array $fields, array $values): array
+    {
+        foreach ($fields as $field) {
+            if ($field->type !== 'list' && ($values[$field->name] ?? null) === '') {
+                $values[$field->name] = null;
+            }
+        }
+
+        return $values;
+    }
+}

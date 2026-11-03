@@ -15,6 +15,7 @@ use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
 use Vortechron\FilamentCms\SectionLibrary;
+use Vortechron\FilamentCms\SiteInfo;
 use Vortechron\FilamentCms\SitePageRenderer;
 
 /**
@@ -107,7 +108,11 @@ class BuildSitePage extends Page
     {
         $this->authorizePageBuilder();
 
-        return [...$this->pageBuilderBaseSupports(), ...($this->plugin()->hasSections() ? [] : ['saveSection' => false])];
+        return [
+            ...$this->pageBuilderBaseSupports(),
+            ...($this->plugin()->hasSections() ? [] : ['saveSection' => false]),
+            ...($this->plugin()->hasParts() ? [] : ['saveSiteInfo' => false]),
+        ];
     }
 
     /**
@@ -185,6 +190,20 @@ class BuildSitePage extends Page
             'title' => __("filament-cms::documents.{$kind}"),
             'editUrl' => static::getUrl(['record' => $kind]),
         ], Document::PARTS);
+    }
+
+    protected function getPageBuilderSiteInfo(): ?array
+    {
+        return $this->plugin()->hasParts() ? app(SiteInfo::class)->forBuilder() : null;
+    }
+
+    protected function savePageBuilderSiteInfo(array $values): void
+    {
+        if (! $this->plugin()->hasParts()) {
+            throw ValidationException::withMessages(['siteInfo' => __('filament-cms::documents.parts_off')]);
+        }
+
+        app(SiteInfo::class)->save($values, Filament::auth()->user());
     }
 
     protected function savePageBuilderSection(array $section, string $title, bool $synced): array

@@ -4,6 +4,7 @@ namespace Vortechron\FilamentCms\Settings\Sections;
 
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
+use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentCms\Settings\SettingsSection;
 
 class HoursSettings extends SettingsSection
@@ -26,6 +27,31 @@ class HoursSettings extends SettingsSection
                 ->maxItems(7)
                 ->addActionLabel(__('filament-cms::settings.add_hours')),
             TextInput::make('note')->label(__('filament-cms::settings.hours_note'))->maxLength(160),
+        ];
+    }
+
+    public function builderFields(): array
+    {
+        return [
+            Field::list('days')
+                ->label(__('filament-cms::settings.hours'))
+                ->maxItems(7)
+                ->fields([
+                    Field::text('days')->label(__('filament-cms::settings.days')),
+                    Field::text('time')->label(__('filament-cms::settings.time')),
+                ]),
+            Field::text('note')->label(__('filament-cms::settings.hours_note')),
+        ];
+    }
+
+    public function builderRules(): array
+    {
+        return [
+            'days' => ['nullable', 'array', 'max:7'],
+            'days.*' => ['array'],
+            'days.*.days' => ['required', 'string', 'max:60'],
+            'days.*.time' => ['required', 'string', 'max:60'],
+            'note' => ['nullable', 'string', 'max:160'],
         ];
     }
 }
