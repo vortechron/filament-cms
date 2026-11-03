@@ -111,9 +111,10 @@ class Document extends Model
     }
 
     /**
-     * The header or the footer, or null when it was never made.
+     * The one document of a kind the site has one of (the header, the
+     * footer, the kit), or null when it was never made.
      */
-    public static function part(string $kind): ?self
+    public static function firstOfKind(string $kind): ?self
     {
         return static::query()->ofKind($kind)->oldest('id')->first();
     }
@@ -123,7 +124,7 @@ class Document extends Model
      */
     public static function findOrCreatePart(string $kind): self
     {
-        return self::part($kind) ?? static::query()->create([
+        return self::firstOfKind($kind) ?? static::query()->create([
             'kind' => $kind,
             'title' => __("filament-cms::documents.{$kind}"),
             'content' => ['version' => 2, 'sections' => []],

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Storage;
+use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentCms\Cms;
 use Vortechron\FilamentCms\PageContent;
 
@@ -21,6 +22,18 @@ if (! function_exists('cms_settings')) {
     function cms_settings(): PageContent
     {
         return app(Cms::class)->page(Cms::SETTINGS);
+    }
+}
+
+if (! function_exists('cms_kit')) {
+    /**
+     * The site's design kit, cleaned: cms_kit()['colors']['primary'].
+     *
+     * @return array<string, mixed>
+     */
+    function cms_kit(): array
+    {
+        return app(KitSource::class)->current();
     }
 }
 
