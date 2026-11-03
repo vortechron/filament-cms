@@ -21,7 +21,9 @@ interface McpEntries
 
     /**
      * The registered entry types:
-     * `[['key' => 'product', 'label' => 'Produk', 'path' => '/produk', 'body' => true, 'fields' => [Field::toArray(), ...]], ...]`.
+     * `[['key' => 'product', 'label' => 'Produk', 'path' => '/produk', 'body' => true, 'fields' => [Field::toArray(), ...],
+     * 'dynamic_values' => [['key' => 'entry.price', 'label' => ..., 'type' => 'text', 'group' => ..., 'preview' => ...], ...]], ...]`
+     * (`dynamic_values`: EntryValues::definitions(), the entry.* keys its designs may show).
      *
      * @return list<array<string, mixed>>
      */

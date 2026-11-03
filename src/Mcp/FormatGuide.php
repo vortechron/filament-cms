@@ -20,6 +20,8 @@ use Vortechron\FilamentBlockEditor\Forms\FormDefinition;
 use Vortechron\FilamentBlockEditor\Styling\Advanced;
 use Vortechron\FilamentBlockEditor\Styling\CustomCss;
 use Vortechron\FilamentBlockEditor\Styling\StyleBag;
+use Vortechron\FilamentCms\Entries\EntryTypes;
+use Vortechron\FilamentCms\Entries\EntryValues;
 
 /**
  * Page format 2 as text an AI can follow: resources/mcp/page-format.md
@@ -158,7 +160,26 @@ final class FormatGuide
             $lines[] = '- '.ucfirst($type).': '.(self::codes($byType[$type] ?? []) ?: 'none');
         }
 
-        return implode("\n", $lines);
+        return implode("\n", [...$lines, ...$this->entryValues()]);
+    }
+
+    /**
+     * Each entry type's entry.* keys, which only its card, its entry page
+     * design and its entries' bodies can show (the same list the builder
+     * offers there).
+     *
+     * @return list<string>
+     */
+    private function entryValues(): array
+    {
+        $lines = [];
+
+        foreach (app(EntryTypes::class)->all() as $type) {
+            $keys = array_map(fn (array $value): string => "`{$value['key']}` ({$value['type']})", EntryValues::definitions($type));
+            $lines[] = "- In the `{$type->key}` card, entry page design and entry bodies only: ".implode(' ', $keys);
+        }
+
+        return $lines;
     }
 
     /**

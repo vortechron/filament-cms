@@ -13,6 +13,7 @@ use Vortechron\FilamentCms\Mcp\Tools\DeleteEntry;
 use Vortechron\FilamentCms\Mcp\Tools\InsertSection;
 use Vortechron\FilamentCms\Mcp\Tools\ListEntries;
 use Vortechron\FilamentCms\Mcp\Tools\ListVersions;
+use Vortechron\FilamentCms\Mcp\Tools\PageFormat;
 use Vortechron\FilamentCms\Mcp\Tools\RestoreVersion;
 use Vortechron\FilamentCms\Mcp\Tools\SaveEntry;
 use Vortechron\FilamentCms\Mcp\Tools\SiteOverview;
@@ -122,6 +123,25 @@ class EntryToolsTest extends McpTestCase
         $this->assertSame(3, count($this->runTool(ListEntries::class)['entries']));
         $this->assertTrue($this->runTool(SiteOverview::class)['entries']['available']);
         $this->assertRefused($this->runTool(ListEntries::class, ['type' => 'blog']), 'type');
+    }
+
+    public function test_site_overview_and_page_format_list_each_types_entry_values(): void
+    {
+        $this->registerProduct();
+        $this->storedEntry('product', 'Teh', ['is_published' => true, 'fields' => ['price' => 'RM 5']]);
+
+        $types = array_column($this->runTool(SiteOverview::class)['entries']['types'], null, 'key');
+        $values = array_column($types['product']['dynamic_values'], null, 'key');
+
+        $this->assertSame(['entry.title', 'entry.url', 'entry.price', 'entry.stock'], array_keys($values));
+        $this->assertSame(['key' => 'entry.price', 'label' => 'Harga', 'type' => 'text', 'group' => 'Produk', 'preview' => 'RM 5'], $values['entry.price']);
+        $this->assertSame(['link', url('/produk/teh')], [$values['entry.url']['type'], $values['entry.url']['preview']]);
+        $this->assertSame(['entry.title', 'entry.url', 'entry.answer'], array_column($types['faq']['dynamic_values'], 'key'));
+
+        $format = $this->runTool(PageFormat::class)['_text'];
+        $this->assertStringContainsString('`product`', $format);
+        $this->assertStringContainsString('`entry.price`', $format);
+        $this->assertStringContainsString('`entry.answer`', $format);
     }
 
     public function test_save_entry_makes_a_real_entry_with_its_fields_cleaned_by_the_type(): void

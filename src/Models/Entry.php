@@ -44,6 +44,17 @@ class Entry extends Document
     }
 
     /**
+     * The type's first entry, published ones first, in the type's order: the
+     * one the builder and the MCP server show a card or single design with.
+     */
+    public static function firstOf(EntryType $type): ?self
+    {
+        $entries = fn () => static::query()->ofType($type->key)->ordered($type->getSort());
+
+        return $entries()->published()->first() ?? $entries()->first();
+    }
+
+    /**
      * @param  Builder<self>  $query
      */
     public function scopeOfType(Builder $query, string $type): void

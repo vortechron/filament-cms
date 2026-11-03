@@ -8,6 +8,7 @@ use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentCms\Entries\EntryStore;
 use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Entries\EntryTypes;
+use Vortechron\FilamentCms\Entries\EntryValues;
 use Vortechron\FilamentCms\Mcp\Contracts\McpEntries;
 use Vortechron\FilamentCms\Models\Entry;
 
@@ -34,6 +35,8 @@ final class RegisteredEntries implements McpEntries
             'body' => $type->hasBody(),
             'sort' => $type->getSort(),
             'fields' => array_map(fn (Field $field): array => $field->toArray(), $type->getFields()),
+            // What its card, entry page design and entry bodies may show, as the builder offers them.
+            'dynamic_values' => EntryValues::definitions($type, Entry::firstOf($type)),
         ], $this->types->all()));
     }
 

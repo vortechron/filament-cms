@@ -56,9 +56,7 @@ final class EntryBuilder
             return $document instanceof Entry ? $document : Entry::query()->find($document->getKey());
         }
 
-        $entries = fn () => Entry::query()->ofType($type->key)->ordered($type->getSort());
-
-        return $entries()->published()->first() ?? $entries()->first();
+        return Entry::firstOf($type);
     }
 
     /**
