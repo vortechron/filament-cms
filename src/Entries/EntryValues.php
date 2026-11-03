@@ -34,12 +34,13 @@ final class EntryValues
     }
 
     /**
-     * What the builder of a type's card, single or entry body gets, with
-     * the values of `$preview` as each one's preview.
+     * The entry.* values of a type, as the builder of its card, single or
+     * entry body gets them, with the values of `$preview` as each one's
+     * preview (null without an entry).
      *
      * @return list<array{key: string, label: string, type: string, group: string, preview: string|null}>
      */
-    public static function definitions(EntryType $type, ?Entry $preview): array
+    public static function definitions(EntryType $type, ?Entry $preview = null): array
     {
         $values = $preview === null ? [] : self::of($preview);
         $labels = ['title' => __('filament-cms::entries.title'), 'url' => __('filament-cms::entries.url')];

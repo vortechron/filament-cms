@@ -6,6 +6,7 @@ use Filament\Facades\Filament;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentBlockEditor\Filament\Concerns\InteractsWithPageBuilder;
@@ -16,6 +17,7 @@ use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
 use Vortechron\FilamentCms\Filament\Resources\SiteSections\SiteSectionResource;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
+use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\Entry;
 use Vortechron\FilamentCms\Models\SitePage;
@@ -113,9 +115,6 @@ class BuildSitePage extends Page
             $options['templates'] = [...$options['templates'] ?? [], ...app(SectionLibrary::class)->templates()];
         }
 
-        // The block editor has no hook for one builder's own values yet.
-        $options['dynamicValues'] = [...$options['dynamicValues'] ?? [], ...EntryBuilder::dynamicValues($this->record)];
-
         if (! $this->plugin()->hasEntries()) {
             $options['blocks'] = array_values(array_filter($options['blocks'] ?? [], fn (array $block): bool => $block['kind'] !== EntryList::KIND));
         }
@@ -197,6 +196,26 @@ class BuildSitePage extends Page
     protected function getPageBuilderKind(): string
     {
         return $this->record->kind === Document::ENTRY ? Document::PAGE : $this->record->kind;
+    }
+
+    /**
+     * The entry.* values an entry, card or single offers.
+     */
+    protected function getPageBuilderDynamicValues(): array
+    {
+        return EntryBuilder::dynamicValues($this->record);
+    }
+
+    /**
+     * The page.* values of the page it is shown on (the page itself, an
+     * entry's own page, else the home page) and the entry.* values of the
+     * entry it shows, so the builder's chips and preview show real values.
+     */
+    protected function getPageBuilderRenderValues(): array
+    {
+        $page = $this->record instanceof SitePage ? $this->record : EntryBuilder::page($this->record) ?? SitePage::query()->where('path', '/')->first() ?? new SitePage(['title' => '', 'path' => '/']);
+
+        return Arr::except([...SitePageRenderer::pageValues($page), ...EntryBuilder::entryValues($this->record)], CmsFormEndpoint::VALUE);
     }
 
     protected function isPageBuilderDeveloper(): bool

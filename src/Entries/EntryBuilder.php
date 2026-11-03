@@ -62,13 +62,37 @@ final class EntryBuilder
     }
 
     /**
+     * The type's entry.* definitions, without previews: the builder reads
+     * them from entryValues().
+     *
      * @return list<array<string, mixed>>
      */
     public static function dynamicValues(Document $document): array
     {
         $type = self::type($document);
 
-        return $type === null ? [] : EntryValues::definitions($type, self::previewEntry($document));
+        return $type === null ? [] : EntryValues::definitions($type);
+    }
+
+    /**
+     * The entry.* values of the entry the builder shows, or [] when there is none.
+     *
+     * @return array<string, string|null>
+     */
+    public static function entryValues(Document $document): array
+    {
+        $entry = self::previewEntry($document);
+
+        return $entry === null ? [] : EntryValues::of($entry);
+    }
+
+    /**
+     * The page an entry body or a single design is drawn on: the entry's
+     * own page (the first entry's, for a single). Null for other kinds.
+     */
+    public static function page(Document $document): ?Entry
+    {
+        return in_array($document->kind, [Document::ENTRY, Document::SINGLE], true) ? self::previewEntry($document) : null;
     }
 
     /**
@@ -86,7 +110,9 @@ final class EntryBuilder
             return $entry === null ? '' : app(EntryPageRenderer::class)->view($entry, $sections, forBuilder: true)->render();
         }
 
-        $preview = fn (): string => app(SitePageRenderer::class)->preview($document, $sections, $entry === null ? [] : EntryValues::of($entry))->render();
+        $page = self::page($document);
+        $values = [...($page === null ? [] : SitePageRenderer::pageValues($page)), ...self::entryValues($document)];
+        $preview = fn (): string => app(SitePageRenderer::class)->preview($document, $sections, $values)->render();
 
         // A card is drawn as a card: a list inside it shows its note only.
         return $document->kind === Document::CARD ? EntryList::drawingCard($preview) : $preview();

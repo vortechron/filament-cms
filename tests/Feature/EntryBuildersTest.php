@@ -143,6 +143,19 @@ class EntryBuildersTest extends TestCase
         $this->assertSame([], $this->entryValues($this->builderOptions($home)));
     }
 
+    public function test_the_builder_shows_the_page_values_of_what_is_built(): void
+    {
+        $this->entry('product', 'Kopi', ['is_published' => true]);
+        SitePage::query()->create(['title' => 'Utama', 'path' => '/', 'sections' => []]);
+        $about = SitePage::query()->create(['title' => 'Tentang kami', 'path' => '/tentang', 'sections' => []]);
+        $this->actingAsClient();
+        $page = fn (Document $document): array => collect($this->builderOptions($document)['dynamicValues'])->keyBy('key')->only(['page.title', 'page.url'])->map(fn (array $value): ?string => $value['preview'])->all();
+
+        $this->assertSame(['page.title' => 'Tentang kami', 'page.url' => url('/tentang')], $page($about));
+        $this->assertSame(['page.title' => 'Kopi', 'page.url' => url('/produk/kopi')], $page(EntryTemplates::findOrCreate(app(EntryTypes::class)->get('product'), Document::SINGLE)));
+        $this->assertSame(['page.title' => 'Utama', 'page.url' => url('/')], $page(EntryTemplates::findOrCreate(app(EntryTypes::class)->get('product'), Document::CARD)));
+    }
+
     public function test_a_card_with_no_entries_yet_has_no_preview_values(): void
     {
         $this->actingAsClient();
