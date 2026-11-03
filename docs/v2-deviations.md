@@ -50,8 +50,11 @@ chose differently or added detail, and why. 3 November 2026.
     the builder did not send keeps its stored value, not the field default. Empty text is saved as null, as
     Tetapan does.
 14. **Pictures (the logo) are paths on the CMS disk.** The builder gets their address. A new picture must be a file
-    on `filament-cms.disk`; anything else is refused ("Choose a picture uploaded here."). When the block editor's
-    upload disk is a different disk, a new logo is refused.
+    that exists on `filament-cms.disk`, directly inside `CmsImage::DIRECTORY` (`cms`) or the builder's upload
+    folder (`filament-block-editor.directory`, only when the builder uploads to the same disk), with a plain name
+    and one of CmsImage's types (jpg, jpeg, png, webp, gif; no svg). Nothing in the address is decoded, so `..`,
+    `%2e` and `//` never pass. Anything else is refused with "Choose a JPG, PNG, WebP or GIF picture uploaded
+    here." (security review, 3 November 2026).
 
 ## Screens and options
 

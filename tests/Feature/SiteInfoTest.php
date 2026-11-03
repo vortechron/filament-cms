@@ -123,6 +123,50 @@ class SiteInfoTest extends TestCase
         $this->assertNull(cms_settings()->section('business')->logo);
     }
 
+    public function test_a_new_logo_must_be_an_image_in_an_upload_folder(): void
+    {
+        Storage::fake('public');
+        foreach (['cms/kedai.WEBP', 'block-editor/logo.svg', 'block-editor/nota.pdf', 'block-editor/sub/x.png', 'private/rahsia.png', 'cms/.png', 'block-editor/x.png'] as $file) {
+            Storage::disk('public')->put($file, 'x');
+        }
+        $this->saveSettings();
+        $builder = $this->builder();
+        $url = fn (string $path): string => '/storage/'.$path;
+
+        foreach ([
+            'private/rahsia.png',
+            'block-editor/logo.svg',
+            'block-editor/nota.pdf',
+            'block-editor/sub/x.png',
+            'cms/.png',
+            'block-editor/%2e%2e/private/rahsia.png',
+            'block-editor/./x.png',
+            'block-editor//x.png',
+            'block-editor/x.png?v=1',
+            'block-editor%2Fx.png',
+        ] as $path) {
+            $result = $this->save($builder, ['business' => ['logo' => $url($path)]]);
+            $this->assertFalse($result['ok'], $path);
+            $this->assertSame(__('filament-cms::settings.picture_here'), $result['errors']['business.logo'], $path);
+        }
+
+        $this->assertSame('cms/logo.png', cms_settings()->section('business')->logo);
+        $this->assertTrue($this->save($builder, ['business' => ['logo' => $url('cms/kedai.WEBP')]])['ok']);
+        $this->assertSame('cms/kedai.WEBP', cms_settings()->section('business')->logo);
+    }
+
+    public function test_the_builder_folder_counts_only_when_the_builder_uploads_to_the_cms_disk(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('block-editor/x.png', 'x');
+        config(['filament-block-editor.disk' => 's3']);
+        $this->saveSettings();
+
+        $result = $this->save($this->builder(), ['business' => ['logo' => '/storage/block-editor/x.png']]);
+
+        $this->assertFalse($result['ok']);
+    }
+
     public function test_a_project_that_extends_the_standard_settings_keeps_working(): void
     {
         config(['filament-cms.settings' => ShopSettings::class]);

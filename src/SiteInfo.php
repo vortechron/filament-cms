@@ -17,7 +17,8 @@ use Vortechron\FilamentCms\Settings\SettingsSection;
  * screen, so it keeps a version. Keys the builder does not show are kept.
  *
  * Picture fields (the logo) are paths on the CMS disk. The builder gets
- * their address, and a new picture must be one uploaded to that disk.
+ * their address. A new picture must be a JPG, PNG, WebP or GIF directly in
+ * CmsImage's folder or the builder's upload folder on that disk.
  */
 final class SiteInfo
 {
@@ -167,9 +168,6 @@ final class SiteInfo
      */
     private function pictures(array $fields, array $clean, array $stored, array &$errors): array
     {
-        $disk = Storage::disk(config('filament-cms.disk', 'public'));
-        $root = rtrim($disk->url(''), '/').'/';
-
         foreach ($fields as $field) {
             $url = $clean[$field->name] ?? null;
 
@@ -177,13 +175,9 @@ final class SiteInfo
                 continue;
             }
 
-            $path = str_starts_with($url, $root) ? rawurldecode(substr($url, strlen($root))) : null;
-
-            $clean[$field->name] = match (true) {
-                $url === cms_image($stored[$field->name] ?? null) => $stored[$field->name],
-                $path !== null && ! str_contains($path, '..') && $disk->exists($path) => $path,
-                default => null,
-            };
+            $clean[$field->name] = $url === cms_image($stored[$field->name] ?? null)
+                ? $stored[$field->name]
+                : $this->uploadedPicture($url);
 
             if ($clean[$field->name] === null) {
                 $errors[$field->name] = __('filament-cms::settings.picture_here');
@@ -191,6 +185,50 @@ final class SiteInfo
         }
 
         return $clean;
+    }
+
+    /**
+     * The path on the CMS disk a new picture's address points at, or null
+     * unless it is a file of CmsImage's types directly inside a folder the
+     * CMS or the builder uploads to. Nothing is decoded: a name holds only
+     * letters, digits, dots, dashes and underscores, so "..", "%2e" and
+     * "//" never pass.
+     */
+    private function uploadedPicture(string $url): ?string
+    {
+        $disk = (string) config('filament-cms.disk', 'public');
+        $root = rtrim(Storage::disk($disk)->url(''), '/').'/';
+        $path = str_starts_with($url, $root) ? substr($url, strlen($root)) : '';
+        $slash = strrpos($path, '/');
+
+        if ($slash === false || ! in_array(substr($path, 0, $slash), $this->uploadFolders($disk), true)) {
+            return null;
+        }
+
+        $types = implode('|', CmsImage::EXTENSIONS);
+
+        if (preg_match('/^[A-Za-z0-9][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)*\.(?:'.$types.')$/i', substr($path, $slash + 1)) !== 1) {
+            return null;
+        }
+
+        return Storage::disk($disk)->exists($path) ? $path : null;
+    }
+
+    /**
+     * CmsImage's folder, and the builder's upload folder when the builder
+     * uploads to the CMS disk.
+     *
+     * @return list<string>
+     */
+    private function uploadFolders(string $disk): array
+    {
+        $folders = [CmsImage::DIRECTORY];
+
+        if ((string) config('filament-block-editor.disk', 'public') === $disk) {
+            $folders[] = trim((string) config('filament-block-editor.directory', 'block-editor'), '/');
+        }
+
+        return $folders;
     }
 
     /**

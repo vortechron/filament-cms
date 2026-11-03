@@ -31,5 +31,5 @@ return [
     'seo_description' => 'Penerangan',
     'share_image' => 'Gambar perkongsian',
     'allow_indexing' => 'Benarkan Google senaraikan website ini',
-    'picture_here' => 'Pilih gambar yang dimuat naik di sini.',
+    'picture_here' => 'Pilih gambar JPG, PNG, WebP atau GIF yang dimuat naik di sini.',
 ];
