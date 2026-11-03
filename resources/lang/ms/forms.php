@@ -2,6 +2,12 @@
 
 return [
     'try_again' => 'Cuba lagi sebentar.',
+    'form' => 'Borang',
+    'yes' => 'Ya',
+    'no' => 'Tidak',
+    'mail_subject' => 'Borang baru: :form',
+    'mail_intro' => 'Seseorang menghantar borang ":form" di website anda.',
+    'mail_page' => 'Dihantar dari halaman :page',
     'validation' => [
         'required' => ':attribute perlu diisi.',
         'accepted' => 'Sila tandakan :attribute.',

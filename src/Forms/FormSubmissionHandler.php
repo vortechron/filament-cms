@@ -10,8 +10,11 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 use Vortechron\FilamentBlockEditor\Forms\FormTimestamp;
+use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\FormSubmission;
+use Vortechron\FilamentCms\Models\SitePage;
+use Vortechron\FilamentCms\SitePageRenderer;
 
 /**
  * Handles a visitor sending a form block (POST /_cms/forms/{document}):
@@ -32,7 +35,7 @@ final class FormSubmissionHandler
      */
     public const PER_MINUTE = 5;
 
-    public function __construct(private readonly FormLocator $locator) {}
+    public function __construct(private readonly FormLocator $locator, private readonly FormActions $actions) {}
 
     public function handle(Document $document, Request $request): Response
     {
@@ -62,8 +65,9 @@ final class FormSubmissionHandler
         }
 
         $submission = $this->save($document, $found, $request, self::data($found, $validator->validated()));
+        $next = $this->actions->run($submission, $found, self::context($document));
 
-        return redirect()->to($back)->with(self::FLASH, $found->blockId);
+        return redirect()->to($next ?? $back)->with(self::FLASH, $found->blockId);
     }
 
     /**
@@ -212,6 +216,17 @@ final class FormSubmissionHandler
         }
 
         return $data;
+    }
+
+    /**
+     * The values a page is drawn with, so `@site.email` and `page.*`
+     * resolve as they did on the page.
+     */
+    private static function context(Document $document): RenderContext
+    {
+        return new RenderContext(values: $document instanceof SitePage
+            ? SitePageRenderer::pageValues($document)
+            : ['page.title' => (string) $document->title, 'page.url' => (string) $document->url(), CmsFormEndpoint::VALUE => (string) $document->getKey()]);
     }
 
     private static function pageUrl(Document $document): string

@@ -2,6 +2,12 @@
 
 return [
     'try_again' => 'Please try again in a moment.',
+    'form' => 'Form',
+    'yes' => 'Yes',
+    'no' => 'No',
+    'mail_subject' => 'New form: :form',
+    'mail_intro' => 'Someone sent the ":form" form on your website.',
+    'mail_page' => 'Sent from the page :page',
     'validation' => [
         'required' => 'Please fill in :attribute.',
         'accepted' => 'Please tick :attribute.',
