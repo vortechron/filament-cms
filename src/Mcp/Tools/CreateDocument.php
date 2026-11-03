@@ -14,9 +14,10 @@ use Vortechron\FilamentCms\Mcp\DocumentWriter;
 use Vortechron\FilamentCms\Mcp\Reply;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
+use Vortechron\FilamentCms\PageLimit;
 
 #[Name('create_document')]
-#[Description('Makes a new document: a page (needs a title and a path; unpublished unless published is true), the header or footer (when the site has none yet), a synced section (kind section) or a saved section (kind template), each of those two holding exactly one rich section. The value is checked and cleaned like a save in the panel and kept as the first version. Answers the new id.')]
+#[Description('Makes a new document: a page (needs a title and a path; unpublished unless published is true), the header or footer (when the site has none yet), a synced section (kind section) or a saved section (kind template), each of those two holding exactly one rich section. A page is refused once the site has its page limit (site_overview pages.max). The value is checked and cleaned like a save in the panel and kept as the first version. Answers the new id.')]
 class CreateDocument extends Tool
 {
     public function handle(Request $request, DocumentWriter $writer): ResponseFactory
@@ -31,6 +32,11 @@ class CreateDocument extends Tool
 
         if ($existing !== null) {
             return Reply::refuse('kind', "This site already has a {$kind->value} (document {$existing->getKey()}). Change it with save_document.");
+        }
+
+        if ($kind === CmsKind::Page && PageLimit::reached()) {
+            return Reply::refuse('kind', 'This site may have at most '.PageLimit::max().' pages (its package), and it has '.PageLimit::used().'. '
+                .'Reuse or delete a page instead; a developer raises the limit with CMS_MAX_PAGES (filament-cms.max_pages).');
         }
 
         $value = DocumentWriter::value($request->all());

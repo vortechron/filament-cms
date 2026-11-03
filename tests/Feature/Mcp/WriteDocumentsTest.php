@@ -133,4 +133,19 @@ class WriteDocumentsTest extends McpTestCase
         $this->assertRefused($this->runTool(CreateDocument::class, ['kind' => 'page', 'path' => '/x']), 'title');
         $this->assertSame(2, Document::query()->count());
     }
+
+    public function test_create_document_refuses_a_page_past_the_site_page_limit_but_still_makes_sections(): void
+    {
+        config(['filament-cms.max_pages' => 2]);
+        $this->makePage('/');
+        $this->makePage('/tentang', title: 'Tentang');
+
+        $refused = $this->runTool(CreateDocument::class, ['kind' => 'page', 'title' => 'Ketiga', 'path' => '/ketiga']);
+
+        $this->assertRefused($refused, 'kind');
+        $this->assertStringContainsString('at most 2 pages', $refused['errors']['kind']);
+        $this->assertStringContainsString('CMS_MAX_PAGES', $refused['errors']['kind']);
+        $this->assertSame(2, SitePage::query()->count());
+        $this->assertSaved($this->runTool(CreateDocument::class, ['kind' => 'section', 'title' => 'Promosi', 'value' => [$this->richSection('sec00001', 'Diskaun')]]));
+    }
 }

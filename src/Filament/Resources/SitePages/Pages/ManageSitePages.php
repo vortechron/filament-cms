@@ -17,10 +17,12 @@ use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\SitePage;
+use Vortechron\FilamentCms\PageLimit;
 
 /**
  * The Halaman screen: the client's pages, then the header and footer every
- * page shares, each with "Bina".
+ * page shares, each with "Bina". With a page limit (PageLimit), it says how
+ * many pages are used and the new page button stops at the limit.
  */
 class ManageSitePages extends ManageRecords
 {
@@ -30,9 +32,25 @@ class ManageSitePages extends ManageRecords
     {
         return [
             CreateAction::make()
+                ->disabled(fn (): bool => PageLimit::reached())
+                ->tooltip(fn (): ?string => PageLimit::reached() ? self::limitWords() : null)
                 ->mutateDataUsing(fn (array $data): array => [...$data, 'sections' => []])
                 ->successRedirectUrl(fn (SitePage $record): string => BuildSitePage::getUrl(['record' => $record])),
         ];
+    }
+
+    public function getSubheading(): ?string
+    {
+        return PageLimit::max() === null ? null : self::limitWords();
+    }
+
+    private static function limitWords(): string
+    {
+        $max = PageLimit::max();
+
+        return PageLimit::reached()
+            ? __('filament-cms::pages.limit_full', ['max' => $max])
+            : __('filament-cms::pages.limit', ['used' => PageLimit::used(), 'max' => $max]);
     }
 
     public function content(Schema $schema): Schema

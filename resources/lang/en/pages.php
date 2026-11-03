@@ -11,4 +11,6 @@ return [
     'updated' => 'Updated',
     'build' => 'Build',
     'path_taken' => 'Another page already uses this address.',
+    'limit' => ':used of :max pages used.',
+    'limit_full' => 'All :max pages in your package are used. Ask your website developer to add more.',
 ];

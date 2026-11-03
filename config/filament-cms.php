@@ -24,6 +24,13 @@ return [
     'page_view' => 'cms.page',
 
     /*
+    | The most pages the client may have, from the package they bought (for
+    | example 5 for Website Starter). Every page counts, published or not;
+    | the header, footer and sections do not. Empty means no limit.
+    */
+    'max_pages' => env('CMS_MAX_PAGES'),
+
+    /*
     | Where uploaded photos are stored. It must be a public disk.
     */
     'disk' => 'public',

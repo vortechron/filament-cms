@@ -51,7 +51,18 @@ class SiteOverviewTest extends McpTestCase
         $contact = array_column($overview['settings'], null, 'key')['contact'];
         $this->assertContains('phones', $contact['fields']);
 
+        $this->assertSame(['max' => null, 'used' => 2], $overview['pages']);
+
         $this->assertFalse($overview['entries']['available']);
         $this->assertSame([], $overview['entries']['types']);
+    }
+
+    public function test_it_tells_the_agent_the_page_limit_and_how_many_pages_are_used(): void
+    {
+        config(['filament-cms.max_pages' => '5']);
+        $this->makePage('/');
+        $this->app->instance(McpEntries::class, new NoEntries);
+
+        $this->assertSame(['max' => 5, 'used' => 1], $this->runTool(SiteOverview::class)['pages']);
     }
 }

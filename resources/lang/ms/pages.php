@@ -11,4 +11,6 @@ return [
     'updated' => 'Dikemas kini',
     'build' => 'Bina',
     'path_taken' => 'Halaman lain sudah guna alamat ini.',
+    'limit' => ':used daripada :max halaman digunakan.',
+    'limit_full' => 'Semua :max halaman dalam pakej anda sudah digunakan. Minta pembangun laman web anda untuk tambah.',
 ];

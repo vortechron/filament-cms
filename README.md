@@ -26,7 +26,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.4
+composer require vortechron/filament-cms:^0.5
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -83,6 +83,22 @@ layout and CSS:
 
 Register your own blocks (the parts of your design the client fills in but cannot break) with the block
 editor's `BlockRegistry`; see its README. Turn the screen off with `FilamentCmsPlugin::make()->sitePages(false)`.
+
+### Page limit
+
+A client's package can cap how many pages they make. Set it in `config/filament-cms.php`, with a default for
+the package so a missing env line never lifts it:
+
+```php
+'max_pages' => env('CMS_MAX_PAGES', 5), // Website Starter: 5 pages
+```
+
+Every page counts, published or not, the home page too. The header, footer, sections and entries do not.
+At the limit the Halaman screen says "Semua 5 halaman dalam pakej anda sudah digunakan." and its "new page"
+button is off; below it, the screen shows how many are used. The MCP `create_document` tool refuses a new page
+too, and `site_overview` answers `pages: {max, used}`. Pages already made are never touched. To give the client
+more, set `CMS_MAX_PAGES` on the server and run `php artisan optimize` (a deploy does it). Empty or `0` means
+no limit.
 
 ### Documents and the one save path
 
