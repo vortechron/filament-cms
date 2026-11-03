@@ -210,7 +210,7 @@ class EntriesScreenTest extends TestCase
     public function test_someone_the_policy_refuses_cannot_open_or_change_entries(): void
     {
         $entry = $this->entry('product', 'Kopi');
-        Gate::policy(Entry::class, DenyEntriesPolicy::class);
+        Gate::policy(Entry::class, NoAccessPolicy::class);
         $this->actingAsClient();
 
         $this->get(EntryResource::getUrl('index', ['type' => 'product']))->assertForbidden();
@@ -222,7 +222,7 @@ class EntriesScreenTest extends TestCase
     public function test_someone_who_may_not_edit_does_not_get_the_edit_actions(): void
     {
         $entry = $this->entry('product', 'Kopi');
-        Gate::policy(Entry::class, ReadOnlyEntriesPolicy::class);
+        Gate::policy(Entry::class, ReadOnlyPolicy::class);
         $this->actingAsClient();
 
         Livewire::test(ManageEntries::class, ['type' => 'product'])
@@ -251,36 +251,5 @@ class EntriesScreenTest extends TestCase
 
         $this->assertContains(EntryResource::class, $on->getResources());
         $this->assertNotContains(EntryResource::class, $off->getResources());
-    }
-}
-
-class DenyEntriesPolicy
-{
-    public function viewAny(): bool
-    {
-        return false;
-    }
-}
-
-class ReadOnlyEntriesPolicy
-{
-    public function viewAny(): bool
-    {
-        return true;
-    }
-
-    public function create(): bool
-    {
-        return false;
-    }
-
-    public function update(): bool
-    {
-        return false;
-    }
-
-    public function delete(): bool
-    {
-        return false;
     }
 }

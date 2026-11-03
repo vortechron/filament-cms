@@ -3,6 +3,7 @@
 return [
     'entry' => 'entry',
     'title' => 'Title',
+    'url' => 'Entry link',
     'slug' => 'Address',
     'slug_help' => 'Leave empty to make the address from the title.',
     'published' => 'Published',

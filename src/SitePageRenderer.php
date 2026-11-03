@@ -50,11 +50,12 @@ final class SitePageRenderer
      * real; a synced section, card or single is drawn as the content.
      *
      * @param  list<array<string, mixed>>  $sections  the unsaved sections
+     * @param  array<string, mixed>  $values  more dynamic values, such as an entry's for a card
      */
-    public function preview(Document $document, array $sections): View
+    public function preview(Document $document, array $sections, array $values = []): View
     {
         $home = SitePage::query()->where('path', '/')->first() ?? new SitePage(['title' => $document->title, 'path' => '/']);
-        $values = self::pageValues($home);
+        $values = [...self::pageValues($home), ...$values];
         $context = new RenderContext(forBuilder: true, isPreview: true, values: $values);
         $edited = '<div class="sf-page" data-preview>'.$this->pages->render($sections, $context).'</div>';
         $isPart = in_array($document->kind, Document::PARTS, true);
@@ -84,11 +85,26 @@ final class SitePageRenderer
     }
 
     /**
-     * The page.* dynamic values of a page.
+     * A document with an address (a page, an entry) drawn as `$content`
+     * inside the page view, with the header and footer around it.
      *
-     * @return array<string, string>
+     * @param  list<array<string, mixed>>  $sections
      */
-    public static function pageValues(SitePage $page): array
+    public function layout(Document $page, array $sections, RenderContext $context, string $content): View
+    {
+        return $this->pageView($page, $sections, $context, [
+            'content' => $content,
+            'header' => $this->part(Document::HEADER, $context->values),
+            'footer' => $this->part(Document::FOOTER, $context->values),
+        ]);
+    }
+
+    /**
+     * The page.* dynamic values of a page (or an entry drawn as a page).
+     *
+     * @return array<string, string|null>
+     */
+    public static function pageValues(Document $page): array
     {
         return ['page.title' => (string) $page->title, 'page.url' => $page->url()];
     }
@@ -102,7 +118,7 @@ final class SitePageRenderer
      * @param  list<array<string, mixed>>  $sections
      * @param  array{content: string, header: string, footer: string}  $html
      */
-    private function pageView(SitePage $page, array $sections, RenderContext $context, array $html): View
+    private function pageView(Document $page, array $sections, RenderContext $context, array $html): View
     {
         return view(config('filament-cms.page_view', 'cms.page'), [
             'page' => $page,

@@ -3,6 +3,7 @@
 return [
     'entry' => 'entri',
     'title' => 'Tajuk',
+    'url' => 'Alamat entri',
     'slug' => 'Alamat',
     'slug_help' => 'Kosongkan untuk buat alamat dari tajuk.',
     'published' => 'Diterbitkan',
