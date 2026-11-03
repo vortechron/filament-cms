@@ -2,9 +2,19 @@
 
 namespace Vortechron\FilamentCms\Tests\Feature;
 
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
+use Livewire\Features\SupportTesting\Testable;
+use Livewire\Livewire;
+use Vortechron\FilamentBlockEditor\BlockNote\Blocks;
 use Vortechron\FilamentCms\Cms;
 use Vortechron\FilamentCms\ContentStore;
+use Vortechron\FilamentCms\Events\SettingsOverridden;
+use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
+use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\CmsRevision;
+use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\Models\SitePage;
 use Vortechron\FilamentCms\SiteInfo;
 use Vortechron\FilamentCms\Tests\TestCase;
 
@@ -21,6 +31,27 @@ class SiteInfoPreviewTest extends TestCase
         parent::setUp();
 
         app(ContentStore::class)->save('settings', self::STORED, null);
+    }
+
+    private function headerBuilder(): Testable
+    {
+        $this->actingAsClient();
+
+        return Livewire::test(BuildSitePage::class, ['record' => Document::findOrCreatePart(Document::HEADER)->getKey()]);
+    }
+
+    /**
+     * The header's preview showing the phone, the email and a WhatsApp button.
+     *
+     * @param  array<string, mixed>  $siteInfo
+     */
+    private function preview(Testable $builder, array $siteInfo): string
+    {
+        $words = Blocks::paragraph('');
+        $words['content'] = [Blocks::dynamic('site.phone'), Blocks::dynamic('site.email')];
+        $section = ['id' => 'hdr00001', 'type' => 'rich', 'data' => ['document' => [$words, Blocks::button('WhatsApp', '@site.whatsapp')]]];
+
+        return $builder->call('previewPageBuilder', ['sections' => [$section]], null, $siteInfo)->effects['returns'][0];
     }
 
     public function test_the_unsaved_shop_info_is_cleaned_over_the_stored_settings_and_nothing_is_saved(): void
@@ -54,5 +85,44 @@ class SiteInfoPreviewTest extends TestCase
         $this->assertSame('kedai@example.com', $settings['contact']['email']);
         $this->assertNull($settings['contact']['map_url']);
         $this->assertSame(['019-999 0000'], $settings['contact']['phones']);
+    }
+
+    public function test_the_builder_preview_draws_the_unsaved_shop_info_and_saves_nothing(): void
+    {
+        $html = $this->preview($this->headerBuilder(), ['contact' => ['phones' => [['number' => '019-999 0000']], 'email' => 'bukan emel']]);
+
+        $this->assertStringContainsString('data-dynamic="site.phone">019-999 0000</span>', $html);
+        $this->assertStringContainsString('data-dynamic="site.email">kedai@example.com</span>', $html);
+        $this->assertStringContainsString('href="https://wa.me/60199990000"', $html);
+        $this->assertStringNotContainsString('012-345 6789', $html);
+        $this->assertSame(self::STORED, app(Cms::class)->saved(Cms::SETTINGS));
+        $this->assertSame(1, CmsRevision::query()->where('key', 'settings')->count());
+        $this->assertSame('012-345 6789', cms_settings()->section('contact')->phones[0]);
+    }
+
+    public function test_with_parts_switched_off_the_preview_draws_the_stored_shop_info(): void
+    {
+        $builder = $this->headerBuilder();
+        FilamentCmsPlugin::get()->parts(false);
+
+        $html = $this->preview($builder, ['contact' => ['phones' => [['number' => '019-999 0000']]]]);
+
+        $this->assertStringContainsString('012-345 6789', $html);
+        $this->assertStringNotContainsString('019-999 0000', $html);
+    }
+
+    public function test_someone_who_may_not_edit_pages_cannot_preview_shop_info(): void
+    {
+        $builder = $this->headerBuilder();
+        Gate::policy(SitePage::class, ReadOnlyPolicy::class);
+        $overridden = false;
+        Event::listen(SettingsOverridden::class, function () use (&$overridden): void {
+            $overridden = true;
+        });
+
+        $builder->call('previewPageBuilder', ['sections' => []], null, ['contact' => ['phones' => [['number' => '019-999 0000']]]])
+            ->assertForbidden();
+
+        $this->assertFalse($overridden);
     }
 }

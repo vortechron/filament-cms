@@ -2,6 +2,7 @@
 
 namespace Vortechron\FilamentCms\Filament\Resources\SitePages\Pages;
 
+use Closure;
 use Filament\Facades\Filament;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
@@ -11,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentBlockEditor\Enums\DocumentKind;
 use Vortechron\FilamentBlockEditor\Filament\Concerns\InteractsWithPageBuilder;
+use Vortechron\FilamentCms\Cms;
 use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Entries\EntryBuilder;
@@ -247,6 +249,21 @@ class BuildSitePage extends Page
     protected function getPageBuilderSiteInfo(): ?array
     {
         return $this->plugin()->hasParts() ? app(SiteInfo::class)->forBuilder() : null;
+    }
+
+    /**
+     * The preview drawn with the shop info the builder has not saved yet:
+     * cleaned like a save (a value that fails the checks shows the stored
+     * one) and read by every settings reader for this draw only. Nothing
+     * is saved.
+     */
+    protected function withPageBuilderSiteInfo(array $values, Closure $draw): string
+    {
+        if (! $this->plugin()->hasParts()) {
+            return $draw();
+        }
+
+        return app(Cms::class)->withSettings(app(SiteInfo::class)->previewSettings($values), $draw);
     }
 
     protected function savePageBuilderSiteInfo(array $values): void
