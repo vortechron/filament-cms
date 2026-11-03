@@ -7,6 +7,7 @@ use Vortechron\FilamentBlockEditor\Content\PageContent;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
+use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
 
@@ -84,13 +85,18 @@ final class SitePageRenderer
     }
 
     /**
-     * The page.* dynamic values of a page.
+     * The page.* dynamic values of a page, and `document.id` so its forms
+     * post to it (Forms\CmsFormEndpoint).
      *
      * @return array<string, string>
      */
     public static function pageValues(SitePage $page): array
     {
-        return ['page.title' => (string) $page->title, 'page.url' => $page->url()];
+        return [
+            'page.title' => (string) $page->title,
+            'page.url' => $page->url(),
+            ...($page->exists ? [CmsFormEndpoint::VALUE => (string) $page->getKey()] : []),
+        ];
     }
 
     private static function wrap(string $part, string $html): string

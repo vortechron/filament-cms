@@ -7,6 +7,8 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Vortechron\FilamentBlockEditor\Content\DynamicValues;
 use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
+use Vortechron\FilamentBlockEditor\Forms\FormEndpoint;
+use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
 
 class FilamentCmsServiceProvider extends PackageServiceProvider
 {
@@ -29,6 +31,9 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
 
         // Synced sections are documents of kind "section".
         $this->app->bind(SectionResolver::class, CmsSectionResolver::class);
+
+        // Form blocks post to the page they are on (Forms\FormSubmissionHandler).
+        $this->app->bind(FormEndpoint::class, CmsFormEndpoint::class);
     }
 
     public function packageBooted(): void
