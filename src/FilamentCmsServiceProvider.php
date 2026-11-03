@@ -7,6 +7,7 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Vortechron\FilamentBlockEditor\Content\DynamicValues;
 use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
+use Vortechron\FilamentCms\Entries\EntryTypes;
 
 class FilamentCmsServiceProvider extends PackageServiceProvider
 {
@@ -23,6 +24,7 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
     public function packageRegistered(): void
     {
         $this->app->singleton(Cms::class);
+        $this->app->singleton(EntryTypes::class);
 
         // The stored kit; the builder's preview overrides it for one draw.
         $this->app->scoped(KitSource::class, CmsKitSource::class);
