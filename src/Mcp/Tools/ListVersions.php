@@ -17,7 +17,7 @@ use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Document;
 
 #[Name('list_versions')]
-#[Description('The saved versions of a document, newest first (the site keeps the newest 20): id, when, who saved it, whether it is the current value, and an outline of its sections. Bring one back with restore_version.')]
+#[Description('The saved versions of a document, newest first (the site keeps the newest 20): id, when, who saved it, whether it is the current value, and an outline of its sections (and an entry\'s fields). Bring one back with restore_version.')]
 #[IsReadOnly]
 class ListVersions extends Tool
 {
@@ -37,6 +37,7 @@ class ListVersions extends Tool
             'user' => $version->user === null ? null : ['name' => $version->user->getAttribute('name'), 'email' => $version->user->getAttribute('email')],
             'current' => $version->content === $document->content,
             ...($document->kind === Document::KIT ? [] : ['outline' => SectionEditor::outline(PageValue::normalize($version->content)['sections'])]),
+            ...($document->kind === Document::ENTRY ? ['fields' => is_array($version->content['fields'] ?? null) ? $version->content['fields'] : []] : []),
         ])->all()]);
     }
 

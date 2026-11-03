@@ -6,6 +6,7 @@ use Closure;
 use Laravel\Mcp\ResponseFactory;
 use Vortechron\FilamentBlockEditor\BlockNote\BlockNoteDocument;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
+use Vortechron\FilamentCms\Entries\EntryBuilder;
 use Vortechron\FilamentCms\Models\Document;
 
 /**
@@ -18,11 +19,18 @@ final class SectionEditor
     public function __construct(private readonly DocumentWriter $writer) {}
 
     /**
-     * A document whose value is a page value, or the error.
+     * A document whose value holds sections, or the error. An entry's body
+     * counts when its type has one; its fields stay as stored.
      */
     public static function document(mixed $id): Document|ResponseFactory
     {
-        return Documents::byId($id, 'document_id', DocumentWriter::PAGE_KINDS);
+        $document = Documents::byId($id, 'document_id', [...DocumentWriter::PAGE_KINDS, Document::ENTRY]);
+
+        if ($document instanceof Document && $document->kind === Document::ENTRY && EntryBuilder::type($document)?->hasBody() !== true) {
+            return Reply::refuse('document_id', "Entry {$document->getKey()} has no body: its type {$document->entry_type} has none. Change its fields with save_entry.");
+        }
+
+        return $document;
     }
 
     /**

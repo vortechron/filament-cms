@@ -10,9 +10,13 @@ use Vortechron\FilamentCms\Entries\EntryTypes;
 use Vortechron\FilamentCms\Mcp\Contracts\McpEntries;
 use Vortechron\FilamentCms\Mcp\Entries\NoEntries;
 use Vortechron\FilamentCms\Mcp\Tools\DeleteEntry;
+use Vortechron\FilamentCms\Mcp\Tools\InsertSection;
 use Vortechron\FilamentCms\Mcp\Tools\ListEntries;
+use Vortechron\FilamentCms\Mcp\Tools\ListVersions;
+use Vortechron\FilamentCms\Mcp\Tools\RestoreVersion;
 use Vortechron\FilamentCms\Mcp\Tools\SaveEntry;
 use Vortechron\FilamentCms\Mcp\Tools\SiteOverview;
+use Vortechron\FilamentCms\Mcp\Tools\UpdateSection;
 use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Entry;
 use Workbench\App\Models\User;
@@ -175,6 +179,39 @@ class EntryToolsTest extends McpTestCase
     {
         $this->assertRefused($this->runTool(ListEntries::class), 'entries');
         $this->assertFalse($this->runTool(SiteOverview::class)['entries']['available']);
+    }
+
+    public function test_the_section_tools_edit_an_entrys_body_and_keep_its_fields(): void
+    {
+        $this->registerProduct();
+        $kopi = $this->storedEntry('product', 'Kopi', ['fields' => ['price' => 'RM 12'], 'sections' => [$this->richSection('body0001', 'Dari ladang')]]);
+        $faq = $this->storedEntry('faq', 'Bila buka?', ['fields' => ['answer' => 'Setiap hari']]);
+
+        $this->assertSaved($this->runTool(InsertSection::class, ['document_id' => $kopi->getKey(), 'section' => $this->richSection('body0002', 'Cara bancuh')]));
+        $this->assertSaved($this->runTool(UpdateSection::class, ['document_id' => $kopi->getKey(), 'section_id' => 'body0001', 'section' => ['data' => ['padding' => 'lg']]]));
+
+        $kopi = $kopi->fresh();
+        $this->assertSame(['body0001', 'body0002'], array_column($kopi->content['sections'], 'id'));
+        $this->assertSame('lg', $kopi->content['sections'][0]['data']['padding']);
+        $this->assertSame(['price' => 'RM 12', 'stock' => null], $kopi->fieldValues());
+
+        $this->assertRefused($this->runTool(InsertSection::class, ['document_id' => $faq->getKey(), 'section' => $this->richSection('s1', 'Isi')]), 'document_id');
+        $this->assertSame(['answer' => 'Setiap hari'], $faq->fresh()->fieldValues());
+    }
+
+    public function test_restore_version_brings_back_an_entrys_sections_and_keeps_its_stored_fields(): void
+    {
+        $this->registerProduct();
+        $kopi = $this->storedEntry('product', 'Kopi', ['fields' => ['price' => 'RM 12'], 'sections' => [$this->richSection('body0001', 'Lama')]]);
+        $first = CmsRevision::query()->where('key', $kopi->revisionKey())->sole();
+        $this->assertTrue(app(EntryStore::class)->save($kopi, ['fields' => ['price' => 'RM 15'], 'sections' => [$this->richSection('body0001', 'Baru')]], null)['ok']);
+
+        $this->assertSaved($this->runTool(RestoreVersion::class, ['document_id' => $kopi->getKey(), 'version_id' => $first->getKey()]));
+
+        $kopi = $kopi->fresh();
+        $this->assertStringContainsString('Lama', json_encode($kopi->content['sections']));
+        $this->assertSame(['price' => 'RM 15', 'stock' => null], $kopi->fieldValues());
+        $this->assertSame(['price' => 'RM 12', 'stock' => null], $this->runTool(ListVersions::class, ['document_id' => $kopi->getKey()])['versions'][2]['fields']);
     }
 
     public function test_without_entry_types_the_entry_tools_say_entries_are_not_set_up(): void

@@ -10,19 +10,18 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Mcp\Documents;
-use Vortechron\FilamentCms\Mcp\DocumentWriter;
 use Vortechron\FilamentCms\Mcp\McpActor;
 use Vortechron\FilamentCms\Mcp\Reply;
 use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Document;
 
 #[Name('restore_version')]
-#[Description('Makes an older version of a document (from list_versions) its current value again, through the store, like the restore button in the panel. The restore is kept as a new version, so it can be undone too.')]
+#[Description('Makes an older version of a document (from list_versions) its current value again, through the store, like the restore button in the panel. For an entry it brings back the sections and keeps the stored fields (change those with save_entry). The restore is kept as a new version, so it can be undone too.')]
 class RestoreVersion extends Tool
 {
     public function handle(Request $request, DocumentStore $store): ResponseFactory
     {
-        $document = Documents::byId($request->get('document_id'), 'document_id', [...DocumentWriter::PAGE_KINDS, Document::KIT]);
+        $document = Documents::byId($request->get('document_id'), 'document_id');
 
         if ($document instanceof ResponseFactory) {
             return $document;

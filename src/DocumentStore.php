@@ -69,8 +69,9 @@ final class DocumentStore
     }
 
     /**
-     * Makes an older version the current one. The restore is itself saved as
-     * a new version, so it can be undone too.
+     * Makes an older version the current one. An entry gets the version's
+     * sections back and keeps its stored fields. The restore is itself saved
+     * as a new version, so it can be undone too.
      *
      * @return array{ok: bool, errors?: array<string, string>}
      */
@@ -78,7 +79,9 @@ final class DocumentStore
     {
         abort_unless($revision->key === $document->revisionKey(), 404);
 
-        return $this->save($document, is_array($revision->content) ? $revision->content : [], $user, $developer);
+        $content = is_array($revision->content) ? $revision->content : [];
+
+        return $this->save($document, $document->kind === Document::ENTRY ? ['sections' => PageValue::normalize($content)['sections']] : $content, $user, $developer);
     }
 
     /**
