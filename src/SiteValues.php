@@ -12,7 +12,8 @@ use Vortechron\FilamentCms\Settings\Sections\SocialSettings;
  * The dynamic values the CMS gives the page builder: the shop's details from
  * the settings (`site.*`) and the page being drawn (`page.*`). Registered
  * once at boot; each value reads the settings when it is drawn, so a change
- * saved a moment ago shows at once.
+ * saved a moment ago shows at once. Each `site.*` value names the shop info
+ * group it comes from (`settings`), so the builder can show that group.
  *
  * `page.title` and `page.url` come from the RenderContext values the
  * SitePageRenderer passes.
@@ -28,24 +29,24 @@ final class SiteValues
         $social = __('filament-cms::settings.social');
 
         $values
-            ->register('site.name', __('filament-cms::settings.name'), $setting('business', 'name'), group: $business)
-            ->register('site.legal_name', __('filament-cms::settings.legal_name'), $setting('business', 'legal_name'), group: $business)
-            ->register('site.registration', __('filament-cms::settings.registration_number'), $setting('business', 'registration_number'), group: $business)
-            ->register('site.logo', __('filament-cms::settings.logo'), fn (): ?string => cms_image(self::setting('business', 'logo')), 'image', $business)
-            ->register('site.phone', __('filament-cms::values.phone'), fn (): ?string => self::phones()[0] ?? null, group: $contact)
-            ->register('site.phones', __('filament-cms::values.phones'), fn (): string => implode(' / ', self::phones()), group: $contact)
-            ->register('site.email', __('filament-cms::settings.email'), $setting('contact', 'email'), group: $contact)
-            ->register('site.address', __('filament-cms::settings.address'), $setting('contact', 'address'), group: $contact)
-            ->register('site.whatsapp_number', __('filament-cms::values.whatsapp_number'), fn (): ?string => cms_whatsapp_number(self::phones()[0] ?? null), group: $contact)
-            ->register('site.whatsapp', __('filament-cms::values.whatsapp'), fn (): ?string => cms_whatsapp_url(self::phones()[0] ?? null), 'link', $contact)
-            ->register('site.phone_link', __('filament-cms::values.phone_link'), fn (): ?string => self::prefixed('tel:+', cms_whatsapp_number(self::phones()[0] ?? null)), 'link', $contact)
-            ->register('site.email_link', __('filament-cms::values.email_link'), fn (): ?string => self::prefixed('mailto:', self::email()), 'link', $contact)
-            ->register('site.map', __('filament-cms::settings.map_url'), fn (): ?string => cms_url(self::setting('contact', 'map_url')), 'link', $contact)
-            ->register('site.hours', __('filament-cms::settings.hours'), fn (): string => implode("\n", self::hours()), group: $hours)
-            ->register('site.hours_note', __('filament-cms::values.hours_note'), $setting('hours', 'note'), group: $hours);
+            ->register('site.name', __('filament-cms::settings.name'), $setting('business', 'name'), group: $business, settings: 'business')
+            ->register('site.legal_name', __('filament-cms::settings.legal_name'), $setting('business', 'legal_name'), group: $business, settings: 'business')
+            ->register('site.registration', __('filament-cms::settings.registration_number'), $setting('business', 'registration_number'), group: $business, settings: 'business')
+            ->register('site.logo', __('filament-cms::settings.logo'), fn (): ?string => cms_image(self::setting('business', 'logo')), 'image', $business, settings: 'business')
+            ->register('site.phone', __('filament-cms::values.phone'), fn (): ?string => self::phones()[0] ?? null, group: $contact, settings: 'contact')
+            ->register('site.phones', __('filament-cms::values.phones'), fn (): string => implode(' / ', self::phones()), group: $contact, settings: 'contact')
+            ->register('site.email', __('filament-cms::settings.email'), $setting('contact', 'email'), group: $contact, settings: 'contact')
+            ->register('site.address', __('filament-cms::settings.address'), $setting('contact', 'address'), group: $contact, settings: 'contact')
+            ->register('site.whatsapp_number', __('filament-cms::values.whatsapp_number'), fn (): ?string => cms_whatsapp_number(self::phones()[0] ?? null), group: $contact, settings: 'contact')
+            ->register('site.whatsapp', __('filament-cms::values.whatsapp'), fn (): ?string => cms_whatsapp_url(self::phones()[0] ?? null), 'link', $contact, settings: 'contact')
+            ->register('site.phone_link', __('filament-cms::values.phone_link'), fn (): ?string => self::prefixed('tel:+', cms_whatsapp_number(self::phones()[0] ?? null)), 'link', $contact, settings: 'contact')
+            ->register('site.email_link', __('filament-cms::values.email_link'), fn (): ?string => self::prefixed('mailto:', self::email()), 'link', $contact, settings: 'contact')
+            ->register('site.map', __('filament-cms::settings.map_url'), fn (): ?string => cms_url(self::setting('contact', 'map_url')), 'link', $contact, settings: 'contact')
+            ->register('site.hours', __('filament-cms::settings.hours'), fn (): string => implode("\n", self::hours()), group: $hours, settings: 'hours')
+            ->register('site.hours_note', __('filament-cms::values.hours_note'), $setting('hours', 'note'), group: $hours, settings: 'hours');
 
         foreach (SocialSettings::PLATFORMS as $platform => $label) {
-            $values->register("site.{$platform}", $label, fn (): ?string => self::social($platform), 'link', $social);
+            $values->register("site.{$platform}", $label, fn (): ?string => self::social($platform), 'link', $social, settings: 'social');
         }
 
         $page = __('filament-cms::values.page');

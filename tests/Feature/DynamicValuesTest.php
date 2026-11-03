@@ -63,6 +63,26 @@ class DynamicValuesTest extends TestCase
         $this->assertSame('link', $types['page.url']);
     }
 
+    public function test_each_site_value_names_the_shop_info_group_it_comes_from(): void
+    {
+        $expected = [
+            'site.name' => 'business', 'site.legal_name' => 'business', 'site.registration' => 'business', 'site.logo' => 'business',
+            'site.phone' => 'contact', 'site.phones' => 'contact', 'site.email' => 'contact', 'site.address' => 'contact',
+            'site.whatsapp_number' => 'contact', 'site.whatsapp' => 'contact', 'site.phone_link' => 'contact',
+            'site.email_link' => 'contact', 'site.map' => 'contact',
+            'site.hours' => 'hours', 'site.hours_note' => 'hours',
+            'site.facebook' => 'social', 'site.instagram' => 'social', 'site.tiktok' => 'social', 'site.threads' => 'social',
+            'site.x' => 'social', 'site.youtube' => 'social', 'site.shopee' => 'social', 'site.lazada' => 'social',
+        ];
+
+        $settings = array_column(app(DynamicValues::class)->definitions(), 'settings', 'key');
+
+        $this->assertSame($expected, array_intersect_key($settings, $expected));
+        $this->assertCount(count($expected), array_filter($settings, fn (string $key): bool => str_starts_with($key, 'site.'), ARRAY_FILTER_USE_KEY));
+        $this->assertArrayNotHasKey('page.title', $settings);
+        $this->assertArrayNotHasKey('page.url', $settings);
+    }
+
     public function test_a_change_to_the_settings_shows_at_once(): void
     {
         $this->saveSettings();
