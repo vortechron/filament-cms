@@ -84,6 +84,8 @@ Everything built in the page builder is a row of `cms_documents` (`Models\Docume
 `footer`, `section`, `template`, `kit`, `card`, `single`, `entry`), a `title`, an optional `path`, and `content`, a
 page value (`['version' => 2, 'sections' => [...]]`, or the kit for kind `kit`). `Models\SitePage` is the kind
 `page`, with the same API as before (`sections`, `published()`, `url()`, `cleanPath()`, `revisionKey()`).
+`Documents\CmsKind` says what each kind is (`$document->cmsKind()->isRoutable()`, `->builderKind()`, `->label()`),
+and `$document->contentSections()` reads any document's sections, upgraded and cleaned.
 
 Save every document through `DocumentStore`. It checks the value, upgrades and cleans it, keeps the stored locks
 and developer-only data when the person saving is not a developer, saves, and keeps the newest 20 versions:
@@ -116,8 +118,8 @@ kind `kit`. `<x-filament-block-editor::styles />` prints it, and `cms_kit()` ret
 
 In the builder a section can be **made synced** (one section many pages show: edit it once, every page changes)
 or **saved as a template** (a copy in the add panel). The **Seksyen** screen lists both, with rename, delete and
-"Bina" for synced ones. Deleting a synced section names the pages that show it; after that they draw nothing in
-its place. Turn it off with `->sections(false)`.
+"Bina" (a saved section is built as one section, like a synced one). Deleting a synced section names the pages that
+show it; after that they draw nothing in its place. Turn it off with `->sections(false)`.
 
 ### Shop info in the builder
 
@@ -169,9 +171,14 @@ applies. A form in the header, the footer or a synced section posts to the page 
   only: JSON over https to public addresses only, 5 seconds), then **WhatsApp** (the visitor goes to wa.me with
   the message filled in, `{nama}` style) or **redirect**. A failing action never loses the submission.
 
-The **Borang** screen lists the submissions, newest first, with a badge for new ones. Opening one marks it read.
-It can mark spam or unread, delete, and download the filtered rows as CSV. Hide it with `->forms(false)`; forms
-still save.
+The **Borang** screen (in Kandungan, after the content screens and before Tetapan) lists the submissions, newest
+first, with a badge for new ones. Filter by form (each form by itself, shown with its name and the pages it was
+sent from) or status. Opening one marks it read. It can mark spam or unread, delete, and download the filtered
+rows as CSV. Hide it with `->forms(false)`; forms still save.
+
+**Known limit:** a form inside an entry card (drawn by the list block) is not connected: its button is disabled
+and the card's builder says so. Put forms on the page, the header or footer, a synced section, or the entry page
+design.
 
 Email needs a real mailer in `.env` (`MAIL_MAILER=smtp` or `ses`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`). With
 `log` or `array` no email is sent (a log line says so). The shop email comes from Tetapan, Hubungi. The webhook
@@ -217,7 +224,8 @@ class AppServiceProvider extends ServiceProvider
 ```
 
 Field names are lowercase letters, digits and underscores (`title`, `url` and `slug` are taken). The path may not
-be `/` or start with an address the site uses (`admin`, `livewire`, `storage`, ...). Turn the screens off with
+be `/` or start with an address the site uses (`FilamentCms::RESERVED_PATHS`: `admin`, `livewire`, `storage`,
+`mcp`, ...). Turn the screens off with
 `FilamentCmsPlugin::make()->entries(false)`; "Bina" and the designs below also need the Halaman screen on.
 
 - **The screen** (`/admin/entries/product`): the entries with title, published and updated; a form made from the
@@ -231,7 +239,8 @@ be `/` or start with an address the site uses (`admin`, `livewire`, `storage`, .
   preview.
 - **The list block** "Senarai entri" (`cms-entries`) shows the published entries of a type: how many (1 to 48),
   1 to 4 columns, the order, and a text for when there are none. With no card designed it draws a plain card
-  (first picture, title, first textarea, a link to the page). A list inside a card is never drawn.
+  (first picture, title, first textarea, a link to the page). A list inside a card is never drawn, and a form
+  inside a card is not connected (see Forms).
 - **Entry pages** are drawn in your `page_view` with `$page` as the entry: the entry page design, or a plain
   layout of the fields when there is none, then the entry's body. `$page->seo_title` is the title and
   `$page->seo_description` the first textarea.
@@ -258,6 +267,7 @@ use Vortechron\FilamentCms\Models\Entry;
 app(EntryStore::class)->save(new Entry(['entry_type' => 'product']), [
     'title' => 'Kopi Kampung',
     'is_published' => true,
+    'sort' => 3,             // optional; a new entry without one goes last
     'fields' => ['price' => 'RM 12', 'photo' => 'https://example.com/kopi.jpg'],
 ], $user);   // ['ok' => true] or ['ok' => false, 'errors' => [...]]
 ```
@@ -297,8 +307,10 @@ documents (`list_documents`, `get_document`, `create_document`, `save_document`,
 at a time (`update_section`, `insert_section`, `move_section`, `remove_section`), `get_kit` and `save_kit`,
 `get_settings` and `save_settings`, entries (`list_entries`, `save_entry`, `delete_entry`), form submissions
 (`list_form_submissions`, `update_form_submission`), `list_versions` and `restore_version`, and `render_document`
-(the public HTML). The entry tools need a `Mcp\Contracts\McpEntries` binding; the form tools work once the site
-saves form submissions.
+(the public HTML; an entry as its own page). The entry tools work on the entry types the site registers, and
+answer "not set up" when it has none; `site_overview`, `list_entries` and `page_format` list each type's `entry.*`
+values for its card and entry page designs. The section tools and `restore_version` also edit an entry's body,
+keeping its fields.
 
 ## A page and its sections
 
