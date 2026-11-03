@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Vortechron\FilamentCms\Filament\Pages\EditContent;
 use Vortechron\FilamentCms\Filament\Pages\EditSettings;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
+use Vortechron\FilamentCms\Filament\Resources\SiteSections\SiteSectionResource;
 
 /**
  * Add to a panel to let the client edit the pages in config/filament-cms.php:
@@ -109,6 +110,10 @@ class FilamentCmsPlugin implements Plugin
 
         if ($this->hasSitePages) {
             $panel->resources([SitePageResource::class]);
+        }
+
+        if ($this->hasSitePages && $this->hasSections) {
+            $panel->resources([SiteSectionResource::class]);
         }
     }
 

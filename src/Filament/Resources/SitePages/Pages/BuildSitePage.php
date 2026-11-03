@@ -14,6 +14,7 @@ use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
+use Vortechron\FilamentCms\SectionLibrary;
 use Vortechron\FilamentCms\SitePageRenderer;
 
 /**
@@ -31,6 +32,7 @@ class BuildSitePage extends Page
 {
     use InteractsWithPageBuilder {
         getPageBuilderOptions as private pageBuilderBaseOptions;
+        getPageBuilderSupports as private pageBuilderBaseSupports;
         savePageBuilder as private pageBuilderBaseSave;
     }
     use InteractsWithRecord;
@@ -89,7 +91,23 @@ class BuildSitePage extends Page
     {
         $this->authorizePageBuilder();
 
-        return $this->pageBuilderBaseOptions();
+        $options = $this->pageBuilderBaseOptions();
+
+        if ($this->plugin()->hasSections()) {
+            $options['templates'] = [...$options['templates'] ?? [], ...app(SectionLibrary::class)->templates()];
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return array{saveKit: bool, saveSection: bool, saveSiteInfo: bool}
+     */
+    public function getPageBuilderSupports(): array
+    {
+        $this->authorizePageBuilder();
+
+        return [...$this->pageBuilderBaseSupports(), ...($this->plugin()->hasSections() ? [] : ['saveSection' => false])];
     }
 
     /**
@@ -167,6 +185,29 @@ class BuildSitePage extends Page
             'title' => __("filament-cms::documents.{$kind}"),
             'editUrl' => static::getUrl(['record' => $kind]),
         ], Document::PARTS);
+    }
+
+    protected function savePageBuilderSection(array $section, string $title, bool $synced): array
+    {
+        if (! $this->plugin()->hasSections()) {
+            return ['ok' => false, 'errors' => ['section' => __('filament-cms::sections.off')]];
+        }
+
+        return app(SectionLibrary::class)->save($section, $title, $synced, Filament::auth()->user(), $this->isPageBuilderDeveloper());
+    }
+
+    protected function getPageBuilderSyncedSections(): array
+    {
+        if (! $this->plugin()->hasSections()) {
+            return [];
+        }
+
+        return app(SectionLibrary::class)->synced()->map(fn (Document $synced): array => [
+            'id' => $synced->getKey(),
+            'title' => (string) $synced->title,
+            'editUrl' => static::getUrl(['record' => $synced]),
+            'section' => SectionLibrary::firstSection($synced),
+        ])->all();
     }
 
     /**
