@@ -8,12 +8,14 @@ use Laravel\Mcp\Server\Attributes\Version;
 use Vortechron\FilamentCms\Mcp\Tools\CreateDocument;
 use Vortechron\FilamentCms\Mcp\Tools\DeleteDocument;
 use Vortechron\FilamentCms\Mcp\Tools\GetDocument;
+use Vortechron\FilamentCms\Mcp\Tools\GetKit;
 use Vortechron\FilamentCms\Mcp\Tools\InsertSection;
 use Vortechron\FilamentCms\Mcp\Tools\ListDocuments;
 use Vortechron\FilamentCms\Mcp\Tools\MoveSection;
 use Vortechron\FilamentCms\Mcp\Tools\PageFormat;
 use Vortechron\FilamentCms\Mcp\Tools\RemoveSection;
 use Vortechron\FilamentCms\Mcp\Tools\SaveDocument;
+use Vortechron\FilamentCms\Mcp\Tools\SaveKit;
 use Vortechron\FilamentCms\Mcp\Tools\SiteOverview;
 use Vortechron\FilamentCms\Mcp\Tools\UpdateSection;
 
@@ -45,6 +47,8 @@ class CmsServer extends Server
         InsertSection::class,
         MoveSection::class,
         RemoveSection::class,
+        GetKit::class,
+        SaveKit::class,
     ];
 
     protected function boot(): void
