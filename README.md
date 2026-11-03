@@ -149,6 +149,31 @@ change in Tetapan shows everywhere at once:
 
 Read one in Blade with `app(DynamicValues::class)->resolve('site.phone', $context)`.
 
+### Forms
+
+A form block built in the page builder posts to `POST /_cms/forms/{document}` (route `filament-cms.forms.submit`),
+which `FilamentCms::routes()` adds. Call it inside `routes/web.php`, so the `web` middleware (session and CSRF)
+applies. A form in the header, the footer or a synced section posts to the page it is shown on.
+
+- **The stored form decides.** The form is read from the saved page, never from the request. Only its fields are
+  saved, checked with its rules. The page must be published, or the answer is a 404.
+- **Bots are refused quietly**: the hidden `_website` field filled, or the signed time `_t` forged or under 2
+  seconds old. More than 5 sends a minute from one address to one form get "Cuba lagi sebentar".
+- **Errors and the success message** show inside the form itself. Your page view prints nothing extra.
+- **Each submission is saved** in `cms_form_submissions` (`Models\FormSubmission`) with the page path, the
+  browser, and a keyed hash of the IP address (never the address).
+- **Actions** (set in the builder): **email** (to `@site.email` or an address, sent at once), **webhook** (developers
+  only: JSON over https to public addresses only, 5 seconds), then **WhatsApp** (the visitor goes to wa.me with
+  the message filled in, `{nama}` style) or **redirect**. A failing action never loses the submission.
+
+The **Borang** screen lists the submissions, newest first, with a badge for new ones. Opening one marks it read.
+It can mark spam or unread, delete, and download the filtered rows as CSV. Hide it with `->forms(false)`; forms
+still save.
+
+Email needs a real mailer in `.env` (`MAIL_MAILER=smtp` or `ses`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`). With
+`log` or `array` no email is sent (a log line says so). The shop email comes from Tetapan, Hubungi. The webhook
+needs PHP's curl extension.
+
 ## A page and its sections
 
 ```php

@@ -67,3 +67,63 @@ chose differently or added detail, and why. 3 November 2026.
 18. **`SitePageStore` now throws a `ValidationException`** when the store refuses a value. Before, it cleaned
     silently.
 19. **Paths.** A document's `path` may be null; `SitePage` still turns a missing path into `/`.
+
+# C2 (CMS forms), 3 November 2026
+
+## Where a form posts and how it is found
+
+1. **`document.id` in the RenderContext values** (`CmsFormEndpoint::VALUE`). `SitePageRenderer::pageValues()` adds it
+    for a saved page, and the header and footer get the same values, so their forms post to the page they are on.
+    **Track C3:** put `document.id` (the entry's id) in the values when drawing an entry page. `hiddenFields()` adds
+    nothing. Without the value, or without `FilamentCms::routes()`, the form has no endpoint.
+2. **The route takes any id** and the controller answers 404 for one that is not a number. With `whereNumber()`
+    the GET catch-all answered such a POST with 405.
+3. **Where the stored form is looked for**, in this order: the document's own sections, an entry's type `single`
+    document (C3 draws it first), the header, the footer, then the synced sections any of them shows (by the
+    `ref` section's id, one level). Only sections visitors see count (hidden ones are skipped). A key with no
+    section id (`{blockId}`) is looked for in all of them. A key over 100 characters or a form that is not there
+    is a 404. Not found: a form inside an entry card drawn by a list block.
+
+## Checks
+
+4. **Quiet refusals go to the page's `#form-{blockId}`**, not to the Referer, with no flash and no error.
+5. **The rate limit counts every send that passes the bot checks, good or not**, keyed by the IP and the block id,
+    so a header form has one limit on every page. Its "Cuba lagi sebentar" shows under the form's first field
+    (`form.{blockId}.{firstField}`): the form block only shows errors by field.
+6. **Validation messages are the package's own** (`filament-cms::forms.validation`, Malay and English), with the
+    field labels as names, so a Malay site needs no `lang/ms/validation.php`.
+
+## What is saved
+
+7. `data` has one value per stored field, in the form's order: text as a string or null, checkboxes as a list,
+    consent as true or false. `form_name` is null when the form has no name. `meta` is `page` (the document path),
+    `user_agent` (cut to 300 characters) and `ip_hash` (HMAC-SHA256 of the IP with the app key).
+
+## Actions
+
+8. **Email:** skipped (with a log line) when the address is empty or not an email, or `mail.default` is `log` or
+    `array`. Reply-To is the first email field the visitor filled. An empty subject is "Borang baru: {name}". HTML
+    only, every value escaped.
+9. **Webhook** (security review, 3 November 2026): JSON `{id, form, page, data, sent_at}`. The host must be a plain
+    ASCII name (no trailing dot, the last part starting with a letter, so `2130706433` and `127.1` are refused) or
+    an IP address written in full. Every address must be public: also refused are carrier-grade NAT (`100.64.0.0/10`,
+    which Tailscale uses), multicast, and the IPv6 forms of private IPv4 addresses (mapped, NAT64, 6to4). curl
+    connects to the checked address for any host and port (`CURLOPT_CONNECT_TO`), through Guzzle's `CurlHandler`,
+    with `proxy` `''` (no proxy from the environment) and no redirects. Every address curl reports
+    (`CURLINFO_PRIMARY_IP`, read in `on_stats`) must be the checked one, or the send failed. Without the curl
+    extension the webhook is refused. Logs name the host only, never the link.
+10. **WhatsApp:** the number goes through `cms_whatsapp_number()` (a leading 0 becomes 60) and must be 8 to 15
+    digits, else the action is skipped. A `{name}` the form has no field for stays as written. Lists are joined
+    with ", ", ticks are "Ya" or "Tidak". An empty message lists every field as "Label: value". The message is cut
+    to 2000 characters. WhatsApp wins over redirect.
+11. **Redirect:** only a `/path` on this site or an `http(s)://` link. A `mailto:`, `tel:` or `#` link is no place to
+    send a visitor, so they go back to the form.
+12. **The success flash is set for WhatsApp and redirect too**, so a visitor who comes back sees the message.
+
+## The Borang screen
+
+13. Top level in the menu (no group), above Halaman. "Mark as new" is labelled "Tanda belum dibaca" (Mark as
+    unread). Labels are found in hidden sections too, so an older submission keeps them. The CSV is our own
+    streamed file, not Filament's exporter (that one needs a queue and its own tables): UTF-8 with a byte order
+    mark, one column per field name seen in the filtered rows, and a `'` before a value a spreadsheet would run as
+    a formula.
