@@ -55,6 +55,10 @@ final class DocumentWriter
 
         $value = Input::json($input['value']);
 
+        if ($value === []) {
+            return 'The value is empty. To remove every section, send {"version": 2, "sections": []}.';
+        }
+
         return is_array($value) ? $value : 'The value must be a page value: {"version": 2, "sections": [...]} (see page_format), as JSON.';
     }
 

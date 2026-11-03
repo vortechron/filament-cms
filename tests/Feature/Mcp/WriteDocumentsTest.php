@@ -55,6 +55,17 @@ class WriteDocumentsTest extends McpTestCase
         $this->assertSame($versions, CmsRevision::query()->count());
     }
 
+    public function test_an_empty_value_is_refused_so_a_page_is_never_wiped_by_mistake(): void
+    {
+        $page = $this->makePage('/', [$this->richSection('sec00001', 'Asal')]);
+
+        $this->assertRefused($this->runTool(SaveDocument::class, ['id' => $page->getKey(), 'value' => []]), 'value');
+        $this->assertCount(1, $page->fresh()->sections);
+
+        $this->assertSaved($this->runTool(SaveDocument::class, ['id' => $page->getKey(), 'value' => ['version' => 2, 'sections' => []]]));
+        $this->assertSame([], $page->fresh()->sections);
+    }
+
     public function test_the_mcp_saves_as_a_developer_so_it_may_change_locks_and_locked_words(): void
     {
         $page = $this->makePage('/');
