@@ -3,6 +3,8 @@
 namespace Vortechron\FilamentCms\Forms;
 
 use Vortechron\FilamentBlockEditor\Forms\FormDefinition;
+use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\Models\FormSubmission;
 
 /**
  * A submission's values as rows of a label and plain text, for the email,
@@ -12,6 +14,28 @@ use Vortechron\FilamentBlockEditor\Forms\FormDefinition;
  */
 final class SubmissionRows
 {
+    /**
+     * A saved submission's rows, labelled from its stored form when the
+     * document still has it.
+     *
+     * @return list<array{name: string, label: string, value: string}>
+     */
+    public static function of(FormSubmission $submission): array
+    {
+        return self::make(self::form($submission), $submission->data ?? []);
+    }
+
+    /**
+     * The stored form a submission was sent with, or null when the document
+     * or the form is gone.
+     */
+    public static function form(FormSubmission $submission): ?FormDefinition
+    {
+        $document = $submission->document_id === null ? null : Document::query()->find($submission->document_id);
+
+        return $document === null ? null : app(FormLocator::class)->find($document, $submission->form_key, shownOnly: false)?->form;
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return list<array{name: string, label: string, value: string}>

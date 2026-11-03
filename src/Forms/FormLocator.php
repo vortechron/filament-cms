@@ -24,7 +24,11 @@ final class FormLocator
 
     public function __construct(private readonly SectionResolver $resolver) {}
 
-    public function find(Document $document, mixed $key): ?LocatedForm
+    /**
+     * @param  bool  $shownOnly  false to look in hidden sections too (the
+     *                           panel's labels for an older submission)
+     */
+    public function find(Document $document, mixed $key, bool $shownOnly = true): ?LocatedForm
     {
         if (! is_string($key) || strlen($key) > 100 || preg_match(self::KEY, $key, $match) !== 1) {
             return null;
@@ -32,7 +36,7 @@ final class FormLocator
 
         [$sectionId, $blockId] = [$match[1] !== '' ? $match[1] : null, $match[2]];
 
-        foreach ($this->sections($document) as $section) {
+        foreach ($this->sections($document, $shownOnly) as $section) {
             if ($sectionId !== null && $section['id'] !== $sectionId) {
                 continue;
             }
@@ -54,12 +58,12 @@ final class FormLocator
      *
      * @return list<array<string, mixed>>
      */
-    private function sections(Document $document): array
+    private function sections(Document $document, bool $shownOnly): array
     {
         $shown = [
-            ...self::visible($document),
-            ...self::visible(Document::firstOfKind(Document::HEADER)),
-            ...self::visible(Document::firstOfKind(Document::FOOTER)),
+            ...self::sectionsOf($document, $shownOnly),
+            ...self::sectionsOf(Document::firstOfKind(Document::HEADER), $shownOnly),
+            ...self::sectionsOf(Document::firstOfKind(Document::FOOTER), $shownOnly),
         ];
         $rich = array_filter($shown, fn (array $section): bool => $section['type'] === PageContent::TYPE);
         $synced = [];
@@ -78,9 +82,11 @@ final class FormLocator
     /**
      * @return list<array<string, mixed>>
      */
-    private static function visible(?Document $document): array
+    private static function sectionsOf(?Document $document, bool $shownOnly): array
     {
-        return PageContent::visible(PageValue::normalize($document?->content ?? [])['sections']);
+        $sections = PageValue::normalize($document?->content ?? [])['sections'];
+
+        return $shownOnly ? PageContent::visible($sections) : $sections;
     }
 
     /**

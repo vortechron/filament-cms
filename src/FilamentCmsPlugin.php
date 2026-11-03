@@ -8,6 +8,7 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Vortechron\FilamentCms\Filament\Pages\EditContent;
 use Vortechron\FilamentCms\Filament\Pages\EditSettings;
+use Vortechron\FilamentCms\Filament\Resources\FormSubmissions\FormSubmissionResource;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
 use Vortechron\FilamentCms\Filament\Resources\SiteSections\SiteSectionResource;
 
@@ -27,6 +28,8 @@ class FilamentCmsPlugin implements Plugin
     protected bool $hasParts = true;
 
     protected bool $hasSections = true;
+
+    protected bool $hasForms = true;
 
     public static function make(): static
     {
@@ -99,6 +102,22 @@ class FilamentCmsPlugin implements Plugin
         return $this->hasSections;
     }
 
+    /**
+     * The "Borang" screen: what visitors sent with the site's form blocks.
+     * On by default. Forms still save submissions when it is off.
+     */
+    public function forms(bool $condition = true): static
+    {
+        $this->hasForms = $condition;
+
+        return $this;
+    }
+
+    public function hasForms(): bool
+    {
+        return $this->hasForms;
+    }
+
     public function isDeveloper(?Authenticatable $user): bool
     {
         return $user !== null && $this->isDeveloperUsing !== null && (bool) ($this->isDeveloperUsing)($user);
@@ -114,6 +133,10 @@ class FilamentCmsPlugin implements Plugin
 
         if ($this->hasSitePages && $this->hasSections) {
             $panel->resources([SiteSectionResource::class]);
+        }
+
+        if ($this->hasForms) {
+            $panel->resources([FormSubmissionResource::class]);
         }
     }
 
