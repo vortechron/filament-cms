@@ -13,20 +13,24 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
+use Vortechron\FilamentCms\Entries\EntryBuilder;
+use Vortechron\FilamentCms\Entries\EntryList;
+use Vortechron\FilamentCms\Entries\EntryPageRenderer;
 use Vortechron\FilamentCms\Mcp\Documents;
 use Vortechron\FilamentCms\Mcp\Reply;
 use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\Models\Entry;
 use Vortechron\FilamentCms\Models\SitePage;
 use Vortechron\FilamentCms\SitePageRenderer;
 
 #[Name('render_document')]
-#[Description('The HTML visitors get, as text, to check your changes: a page in the site\'s own layout (with the header and footer), or the header or footer alone. Only what visitors can see is drawn unless include_unpublished is true: then an unpublished page, a synced or saved section, a card or entry page design, or an entry is drawn too (its sections only). The HTML is cut at about 200 KB, with a note on the first line when it is.')]
+#[Description('The HTML visitors get, as text, to check your changes: a page or an entry in the site\'s own layout (with the header and footer; an entry is its type\'s entry page design with its values, then its own sections), or the header or footer alone. Only what visitors can see is drawn unless include_unpublished is true: then an unpublished page or entry, a synced or saved section, or a card or entry page design is drawn too. A section is drawn alone; a card or entry page design with the values of the type\'s first entry. The HTML is cut at about 200 KB, with a note on the first line when it is.')]
 #[IsReadOnly]
 class RenderDocument extends Tool
 {
     public const MAX_BYTES = 200_000;
 
-    public function handle(Request $request, SitePageRenderer $site, PageRenderer $pages): Response|ResponseFactory
+    public function handle(Request $request, SitePageRenderer $site, EntryPageRenderer $entries, PageRenderer $pages): Response|ResponseFactory
     {
         $document = Documents::find($request->all(['id', 'path']));
 
@@ -42,11 +46,26 @@ class RenderDocument extends Tool
             return Reply::refuse('include_unpublished', "Visitors do not see document {$document->getKey()} ({$document->kind}) on its own. Send include_unpublished: true to draw it anyway.");
         }
 
-        return Response::text(self::cut(match ($document->kind) {
-            Document::PAGE => $site->view(SitePage::query()->findOrFail($document->getKey()))->render(),
-            Document::HEADER, Document::FOOTER => $site->part($document->kind, self::homeValues()),
-            default => '<div class="sf-page">'.$pages->render(PageValue::normalize($document->content ?? [])['sections'], new RenderContext(values: self::homeValues())).'</div>',
+        return Response::text(self::cut(match (true) {
+            $document->kind === Document::PAGE => $site->view(SitePage::query()->findOrFail($document->getKey()))->render(),
+            $document->kind === Document::ENTRY => $entries->view(Entry::query()->findOrFail($document->getKey()))->render(),
+            in_array($document->kind, Document::PARTS, true) => $site->part($document->kind, self::homeValues()),
+            default => self::sections($document, $pages),
         }));
+    }
+
+    /**
+     * A section or a design on its own. A card is drawn as the list block
+     * draws it, and a single as the top of an entry's page, each with the
+     * values of the type's first entry.
+     */
+    private static function sections(Document $document, PageRenderer $pages): string
+    {
+        $page = EntryBuilder::page($document);
+        $values = [...($page === null ? self::homeValues() : SitePageRenderer::pageValues($page)), ...EntryBuilder::entryValues($document)];
+        $draw = fn (): string => $pages->render(PageValue::normalize($document->content ?? [])['sections'], new RenderContext(values: $values));
+
+        return '<div class="sf-page">'.($document->kind === Document::CARD ? EntryList::drawingCard($draw) : $draw()).'</div>';
     }
 
     /**
@@ -55,8 +74,12 @@ class RenderDocument extends Tool
      */
     private static function isPublic(Document $document): bool
     {
-        return in_array($document->kind, Document::PARTS, true)
-            || (in_array($document->kind, [Document::PAGE, Document::ENTRY], true) && $document->is_published);
+        if (in_array($document->kind, Document::PARTS, true)) {
+            return true;
+        }
+
+        return $document->is_published && ($document->kind === Document::PAGE
+            || ($document->kind === Document::ENTRY && EntryBuilder::type($document)?->getPath() !== null));
     }
 
     /**
@@ -81,8 +104,8 @@ class RenderDocument extends Tool
     {
         return [
             'id' => $schema->integer()->description('The document id.'),
-            'path' => $schema->string()->description('Instead of the id: the path of a page, such as "/tentang".'),
-            'include_unpublished' => $schema->boolean()->description('Draw it even when visitors cannot see it (an unpublished page, a section, a design). Default false.'),
+            'path' => $schema->string()->description('Instead of the id: the path of a page or entry, such as "/tentang" or "/produk/kopi".'),
+            'include_unpublished' => $schema->boolean()->description('Draw it even when visitors cannot see it (an unpublished page or entry, a section, a design). Default false.'),
         ];
     }
 }
