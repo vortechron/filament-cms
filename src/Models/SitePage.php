@@ -4,65 +4,46 @@ namespace Vortechron\FilamentCms\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Vortechron\FilamentBlockEditor\Content\PageValue;
 
 /**
- * A page the client builds in the page builder, shown at its own address.
- * The home page has the path "/".
+ * A page the client builds in the page builder, shown at its own address:
+ * a document of kind "page". The home page has the path "/".
  *
- * @property string $title
+ * `sections` reads and writes `content.sections`.
+ *
  * @property string $path
  * @property list<array<string, mixed>> $sections
- * @property bool $is_published
  */
-class SitePage extends Model
+class SitePage extends Document
 {
-    protected $table = 'cms_pages';
+    protected $attributes = ['kind' => self::PAGE];
 
-    protected $guarded = [];
-
-    protected function casts(): array
+    protected static function booted(): void
     {
-        return ['sections' => 'array', 'is_published' => 'boolean'];
+        static::addGlobalScope('kind', fn (Builder $query) => $query->where($query->qualifyColumn('kind'), self::PAGE));
+        static::creating(fn (SitePage $page) => $page->kind = self::PAGE);
     }
 
     /**
-     * Every path is stored as "/" or "/lower-case-words-with-dashes", so a
-     * page is found the same way however it was typed.
+     * @return Attribute<list<array<string, mixed>>, list<array<string, mixed>>|null>
      */
-    public static function cleanPath(?string $path): string
+    protected function sections(): Attribute
     {
-        $parts = array_filter(array_map(
-            fn (string $part): string => Str::slug($part),
-            explode('/', (string) $path),
-        ));
-
-        return '/'.implode('/', $parts);
+        return Attribute::make(
+            get: fn (): array => PageValue::upgrade($this->content ?? [])['sections'] ?? [],
+            set: fn (?array $value): array => ['content' => json_encode(['version' => PageValue::VERSION, 'sections' => array_values($value ?? [])])],
+        );
     }
 
     /**
-     * @return Attribute<string, string>
+     * A page always has an address: "/" when none is given.
+     *
+     * @return Attribute<string, string|null>
      */
     protected function path(): Attribute
     {
         return Attribute::make(set: fn (?string $value): string => self::cleanPath($value));
-    }
-
-    /**
-     * @param  Builder<self>  $query
-     */
-    public function scopePublished(Builder $query): void
-    {
-        $query->where('is_published', true);
-    }
-
-    /**
-     * The key its saved versions are kept under.
-     */
-    public function revisionKey(): string
-    {
-        return 'page:'.$this->getKey();
     }
 
     public function url(): string
