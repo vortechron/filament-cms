@@ -2,18 +2,21 @@
 
 namespace Vortechron\FilamentCms;
 
-use Closure;
-use InvalidArgumentException;
 use Vortechron\FilamentBlockEditor\Content\DynamicValues;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
-use Vortechron\FilamentCms\Settings\Sections\SocialSettings;
+use Vortechron\FilamentCms\Settings\SettingsSection;
+use Vortechron\FilamentCms\Settings\StandardSettings;
 
 /**
- * The dynamic values the CMS gives the page builder: the shop's details from
- * the settings (`site.*`) and the page being drawn (`page.*`). Registered
- * once at boot; each value reads the settings when it is drawn, so a change
- * saved a moment ago shows at once. Each `site.*` value names the shop info
- * group it comes from (`settings`), so the builder can show that group.
+ * The dynamic values the CMS gives the page builder: the values each
+ * settings section declares in shopValues() (the shop's `site.*` details) and
+ * the page being drawn (`page.*`). Registered once at boot; each value reads
+ * the settings when it is drawn, so a change saved a moment ago shows at
+ * once. Each section value names its section's key as the shop info group
+ * it comes from (`settings`), so the builder can show that group.
+ *
+ * Sections register in order; if two register the same key, the last one
+ * wins (a project section can replace a standard value).
  *
  * `page.title` and `page.url` come from the RenderContext values the
  * SitePageRenderer passes.
@@ -22,31 +25,10 @@ final class SiteValues
 {
     public static function register(DynamicValues $values): void
     {
-        $setting = fn (string $section, string $field): Closure => fn (): mixed => self::setting($section, $field);
-        $business = __('filament-cms::settings.business');
-        $contact = __('filament-cms::settings.contact');
-        $hours = __('filament-cms::settings.hours');
-        $social = __('filament-cms::settings.social');
-
-        $values
-            ->register('site.name', __('filament-cms::settings.name'), $setting('business', 'name'), group: $business, settings: 'business')
-            ->register('site.legal_name', __('filament-cms::settings.legal_name'), $setting('business', 'legal_name'), group: $business, settings: 'business')
-            ->register('site.registration', __('filament-cms::settings.registration_number'), $setting('business', 'registration_number'), group: $business, settings: 'business')
-            ->register('site.logo', __('filament-cms::settings.logo'), fn (): ?string => cms_image(self::setting('business', 'logo')), 'image', $business, settings: 'business')
-            ->register('site.phone', __('filament-cms::values.phone'), fn (): ?string => self::phones()[0] ?? null, group: $contact, settings: 'contact')
-            ->register('site.phones', __('filament-cms::values.phones'), fn (): string => implode(' / ', self::phones()), group: $contact, settings: 'contact')
-            ->register('site.email', __('filament-cms::settings.email'), $setting('contact', 'email'), group: $contact, settings: 'contact')
-            ->register('site.address', __('filament-cms::settings.address'), $setting('contact', 'address'), group: $contact, settings: 'contact')
-            ->register('site.whatsapp_number', __('filament-cms::values.whatsapp_number'), fn (): ?string => cms_whatsapp_number(self::phones()[0] ?? null), group: $contact, settings: 'contact')
-            ->register('site.whatsapp', __('filament-cms::values.whatsapp'), fn (): ?string => cms_whatsapp_url(self::phones()[0] ?? null), 'link', $contact, settings: 'contact')
-            ->register('site.phone_link', __('filament-cms::values.phone_link'), fn (): ?string => self::prefixed('tel:+', cms_whatsapp_number(self::phones()[0] ?? null)), 'link', $contact, settings: 'contact')
-            ->register('site.email_link', __('filament-cms::values.email_link'), fn (): ?string => self::prefixed('mailto:', self::email()), 'link', $contact, settings: 'contact')
-            ->register('site.map', __('filament-cms::settings.map_url'), fn (): ?string => cms_url(self::setting('contact', 'map_url')), 'link', $contact, settings: 'contact')
-            ->register('site.hours', __('filament-cms::settings.hours'), fn (): string => implode("\n", self::hours()), group: $hours, settings: 'hours')
-            ->register('site.hours_note', __('filament-cms::values.hours_note'), $setting('hours', 'note'), group: $hours, settings: 'hours');
-
-        foreach (SocialSettings::PLATFORMS as $platform => $label) {
-            $values->register("site.{$platform}", $label, fn (): ?string => self::social($platform), 'link', $social, settings: 'social');
+        foreach (self::sections() as $section) {
+            foreach ($section->shopValues() as $value) {
+                $values->register($value->key, $value->label, $value->resolve, $value->type, $value->group ?? $section->label(), settings: $section->key);
+            }
         }
 
         $page = __('filament-cms::values.page');
@@ -57,73 +39,16 @@ final class SiteValues
     }
 
     /**
-     * One saved setting, or null when the project's settings have no such
-     * section.
-     */
-    private static function setting(string $section, string $field): mixed
-    {
-        try {
-            return cms_settings()->section($section)->get($field);
-        } catch (InvalidArgumentException) {
-            return null;
-        }
-    }
-
-    /**
-     * @return list<string>
-     */
-    private static function phones(): array
-    {
-        $phones = self::setting('contact', 'phones');
-        $numbers = array_map(fn (mixed $phone): mixed => is_array($phone) ? ($phone['number'] ?? null) : $phone, is_array($phones) ? $phones : []);
-
-        return array_values(array_filter(array_map(fn (mixed $number): string => is_string($number) ? trim($number) : '', $numbers)));
-    }
-
-    /**
-     * Each opening hours row as "days: time".
+     * The sections of the project's settings page, or of StandardSettings
+     * when none is set, so the standard `site.*` keys always register.
      *
-     * @return list<string>
+     * @return list<SettingsSection>
      */
-    private static function hours(): array
+    private static function sections(): array
     {
-        $rows = self::setting('hours', 'days');
-        $lines = [];
+        $cms = app(Cms::class);
+        $page = $cms->has(Cms::SETTINGS) ? $cms->definition(Cms::SETTINGS) : app(StandardSettings::class);
 
-        foreach (is_array($rows) ? $rows : [] as $row) {
-            $days = is_array($row) && is_string($row['days'] ?? null) ? trim($row['days']) : '';
-            $time = is_array($row) && is_string($row['time'] ?? null) ? trim($row['time']) : '';
-
-            if ($days !== '' || $time !== '') {
-                $lines[] = $days !== '' && $time !== '' ? "{$days}: {$time}" : $days.$time;
-            }
-        }
-
-        return $lines;
-    }
-
-    private static function email(): ?string
-    {
-        $email = self::setting('contact', 'email');
-
-        return is_string($email) && filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false ? trim($email) : null;
-    }
-
-    private static function social(string $platform): ?string
-    {
-        $links = self::setting('social', 'links');
-
-        foreach (is_array($links) ? $links : [] as $link) {
-            if (is_array($link) && ($link['platform'] ?? null) === $platform && cms_url($link['url'] ?? null) !== null) {
-                return cms_url($link['url']);
-            }
-        }
-
-        return null;
-    }
-
-    private static function prefixed(string $prefix, ?string $value): ?string
-    {
-        return $value === null ? null : $prefix.$value;
+        return array_values(array_filter($page->sections(), fn (mixed $section): bool => $section instanceof SettingsSection));
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Validation\Rule;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentCms\CmsUrl;
 use Vortechron\FilamentCms\Settings\SettingsSection;
+use Vortechron\FilamentCms\Settings\ShopValue;
 
 class SocialSettings extends SettingsSection
 {
@@ -63,5 +64,27 @@ class SocialSettings extends SettingsSection
             'links.*.platform' => ['required', 'string', Rule::in(array_keys(self::PLATFORMS))],
             'links.*.url' => ['required', 'string', 'url:http,https', 'max:500'],
         ];
+    }
+
+    public function shopValues(): array
+    {
+        return array_map(
+            fn (string $platform, string $label): ShopValue => ShopValue::link("site.{$platform}", $label, fn (): ?string => $this->link($platform)),
+            array_keys(self::PLATFORMS),
+            self::PLATFORMS,
+        );
+    }
+
+    private function link(string $platform): ?string
+    {
+        $links = $this->setting('links');
+
+        foreach (is_array($links) ? $links : [] as $link) {
+            if (is_array($link) && ($link['platform'] ?? null) === $platform && cms_url($link['url'] ?? null) !== null) {
+                return cms_url($link['url']);
+            }
+        }
+
+        return null;
     }
 }

@@ -26,7 +26,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.3.1
+composer require vortechron/filament-cms:^0.4
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -175,13 +175,35 @@ change in Tetapan shows everywhere at once:
 | Link | `site.whatsapp` (wa.me), `site.phone_link` (tel:), `site.email_link` (mailto:), `site.map`, `site.facebook`, `site.instagram`, `site.tiktok`, `site.threads`, `site.x`, `site.youtube`, `site.shopee`, `site.lazada`, `page.url` |
 | Picture | `site.logo` |
 
-Read one in Blade with `app(DynamicValues::class)->resolve('site.phone', $context)`. Each `site.*` value names
-the shop info group it comes from (`business`, `contact`, `hours`, `social`). A value of your own does it with
-`settings:`, so the builder shows that group where it is used:
+Read one in Blade with `app(DynamicValues::class)->resolve('site.phone', $context)`. In an own block's `text` or
+`textarea` field a short code `{site.phone}` is replaced the same way; a link or image field takes a whole `@key`.
+
+Each settings section declares its own values in `shopValues()`, and the CMS registers them with the section's key as
+the shop info group (`business`, `contact`, `hours`, `social` for the standard ones). To add your own, extend
+`StandardSettings` and add a section that holds its fields, its `builderFields()` and its `shopValues()`:
 
 ```php
-app(DynamicValues::class)->register('site.area', 'Kawasan', fn () => cms_settings()->section('delivery')->area, settings: 'delivery');
+class ClinicSection extends SettingsSection
+{
+    public function label(): string { return 'Klinik'; }
+    public function fields(): array { return [TextInput::make('doctor')]; }
+    public function builderFields(): array { return [Field::text('doctor')->label('Doktor bertugas')]; }
+    public function shopValues(): array
+    {
+        // The resolver runs when a page is drawn; setting() reads the settings then (and in a builder preview).
+        return [ShopValue::text('site.doctor_on_duty', 'Doktor bertugas', fn () => $this->setting('doctor'))];
+    }
+}
+
+class ClinicSettings extends StandardSettings
+{
+    public function sections(): array { return [...parent::sections(), ClinicSection::make('clinic')]; }
+}
 ```
+
+`ShopValue::text()`, `link()` and `image()` take a key, a label, a resolver and an optional group label (the
+section's label by default). Point `filament-cms.settings` at `ClinicSettings` and `site.doctor_on_duty` is
+available in the builder, with `settings: 'clinic'`. A settings class that drops a standard section loses that section's `site.*` keys; with no settings page set, the `StandardSettings` sections register.
 
 ### Forms
 

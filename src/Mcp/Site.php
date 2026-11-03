@@ -38,6 +38,7 @@ final class Site
             'Start with site_overview. Read page_format before you write a page value. For small changes use the section tools '
                 .'(update_section, insert_section, move_section, remove_section) instead of sending the whole page. '
                 .'Check the result with render_document.',
+            'Own block text and textarea fields may hold {key} short codes (for example "Hubungi {site.name}"); site_overview\'s dynamic_values lists the keys.',
         ]);
     }
 }

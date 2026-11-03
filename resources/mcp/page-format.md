@@ -211,8 +211,13 @@ A key is a lowercase name and one to three dotted parts: `{{dynamic_key}}`.
   as a link when the page is drawn.
 - In pictures (image and video `url`, own block `image` fields): `@site.logo`, resolved and then checked as a
   picture address.
+- In own block `text` and `textarea` fields: short codes `{key}` inside the text, such as
+  `Hubungi {site.name} di {site.phone}`. A link or image field takes a whole `@key`, never `{key}`.
 
-Values on this site (site_overview shows their current values):
+Find the keys with `site_overview` (`dynamic_values`, with their current values) or the list below. A site adds its
+own through its settings sections; `get_settings` lists those sections.
+
+Values on this site:
 
 {{dynamic_values}}
 

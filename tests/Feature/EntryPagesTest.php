@@ -4,11 +4,13 @@ namespace Vortechron\FilamentCms\Tests\Feature;
 
 use Vortechron\FilamentBlockEditor\BlockNote\Blocks;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentBlockEditor\Content\DynamicValues;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Entries\EntryStore;
 use Vortechron\FilamentCms\Entries\EntryTemplates;
 use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Entries\EntryTypes;
+use Vortechron\FilamentCms\Entries\EntryValues;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\Entry;
 use Vortechron\FilamentCms\Tests\TestCase;
@@ -110,6 +112,22 @@ class EntryPagesTest extends TestCase
         $this->assertStringContainsString('<a href="https://shopee.test/kopi" rel="noopener">Beli di Shopee</a>', $main);
         $this->assertStringNotContainsString('<script>x', $main);
         $this->assertLessThan(strpos($main, 'Cerita kopi'), strpos($main, 'cms-entry-title'));
+    }
+
+    public function test_short_codes_in_text_fields_are_filled_with_the_shop_value_and_stay_escaped(): void
+    {
+        app(DynamicValues::class)->register('site.test_phone', 'Telefon', fn (): string => '011-1 <b>2</b>');
+        $entry = $this->entry('Kopi', [
+            'fields' => ['price' => 'RM12 {site.test_phone}', 'summary' => "Hubungi {site.test_phone}.\n{site.gone} {nama}"],
+        ]);
+
+        $this->assertSame('RM12 011-1 <b>2</b>', EntryValues::of($entry)['entry.price']);
+        $this->assertSame("Hubungi 011-1 <b>2</b>.\n {nama}", EntryValues::of($entry)['entry.summary']);
+
+        $main = str($this->get($entry->path)->assertOk()->getContent())->after('<main>')->before('</main>')->toString();
+
+        $this->assertStringContainsString('Hubungi 011-1 &lt;b&gt;2&lt;/b&gt;.', $main);
+        $this->assertStringNotContainsString('{site.', $main);
     }
 
     public function test_the_seo_title_and_description_come_from_the_title_and_first_textarea(): void

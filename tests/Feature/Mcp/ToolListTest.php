@@ -41,7 +41,7 @@ class ToolListTest extends McpTestCase
 
         $this->postJson('/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize', 'params' => ['protocolVersion' => '2025-06-18']], ['Authorization' => 'Bearer '.$this->token()])
             ->assertOk()
-            ->assertJsonPath('result.instructions', fn (string $text): bool => str_contains($text, 'Kedai Ujian') && str_contains($text, 'same checks'));
+            ->assertJsonPath('result.instructions', fn (string $text): bool => str_contains($text, 'Kedai Ujian') && str_contains($text, 'same checks') && str_contains($text, '{key} short codes'));
     }
 
     private function token(): string

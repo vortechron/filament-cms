@@ -72,7 +72,9 @@ class SiteInfoTest extends TestCase
             'seo' => ['title' => 'Diubah'],
         ]);
 
-        $this->assertSame(['ok' => true], $result);
+        $this->assertTrue($result['ok']);
+        // The answer carries the shop values read again, so the builder's rows show the new phone at once.
+        $this->assertSame('019-999 0000', collect($result['dynamicValues'])->firstWhere('key', 'site.phone')['preview']);
         $settings = cms_settings();
         $this->assertSame(['019-999 0000', '03-1111 2222'], $settings->section('contact')->phones);
         $this->assertSame('baru@example.com', $settings->section('contact')->email);

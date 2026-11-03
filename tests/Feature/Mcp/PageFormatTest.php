@@ -67,4 +67,13 @@ class PageFormatTest extends McpTestCase
         $this->assertStringContainsString('`fbe-faq`', $format);
         $this->assertStringNotContainsString('{{', $format);
     }
+
+    public function test_it_tells_how_to_use_and_find_short_codes(): void
+    {
+        $format = $this->format();
+
+        foreach (['Hubungi {site.name} di {site.phone}', 'whole `@key`', '`site_overview`', '`get_settings`'] as $needle) {
+            $this->assertStringContainsString($needle, $format);
+        }
+    }
 }

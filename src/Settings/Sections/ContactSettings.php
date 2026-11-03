@@ -8,6 +8,7 @@ use Filament\Forms\Components\TextInput;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentCms\CmsUrl;
 use Vortechron\FilamentCms\Settings\SettingsSection;
+use Vortechron\FilamentCms\Settings\ShopValue;
 
 class ContactSettings extends SettingsSection
 {
@@ -72,5 +73,40 @@ class ContactSettings extends SettingsSection
         $phones = is_array($values['phones'] ?? null) ? $values['phones'] : [];
 
         return [...$values, 'phones' => array_values(array_map(fn (array $phone): string => trim((string) ($phone['number'] ?? '')), $phones))];
+    }
+
+    public function shopValues(): array
+    {
+        $number = fn (): ?string => cms_whatsapp_number($this->phones()[0] ?? null);
+
+        return [
+            ShopValue::text('site.phone', __('filament-cms::values.phone'), fn (): ?string => $this->phones()[0] ?? null),
+            ShopValue::text('site.phones', __('filament-cms::values.phones'), fn (): string => implode(' / ', $this->phones())),
+            ShopValue::text('site.email', __('filament-cms::settings.email'), fn (): mixed => $this->setting('email')),
+            ShopValue::text('site.address', __('filament-cms::settings.address'), fn (): mixed => $this->setting('address')),
+            ShopValue::text('site.whatsapp_number', __('filament-cms::values.whatsapp_number'), $number),
+            ShopValue::link('site.whatsapp', __('filament-cms::values.whatsapp'), fn (): ?string => cms_whatsapp_url($this->phones()[0] ?? null)),
+            ShopValue::link('site.phone_link', __('filament-cms::values.phone_link'), fn (): ?string => ($digits = $number()) === null ? null : "tel:+{$digits}"),
+            ShopValue::link('site.email_link', __('filament-cms::values.email_link'), fn (): ?string => ($email = $this->email()) === null ? null : "mailto:{$email}"),
+            ShopValue::link('site.map', __('filament-cms::settings.map_url'), fn (): ?string => cms_url($this->setting('map_url'))),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function phones(): array
+    {
+        $phones = $this->setting('phones');
+        $numbers = array_map(fn (mixed $phone): mixed => is_array($phone) ? ($phone['number'] ?? null) : $phone, is_array($phones) ? $phones : []);
+
+        return array_values(array_filter(array_map(fn (mixed $number): string => is_string($number) ? trim($number) : '', $numbers)));
+    }
+
+    private function email(): ?string
+    {
+        $email = $this->setting('email');
+
+        return is_string($email) && filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false ? trim($email) : null;
     }
 }

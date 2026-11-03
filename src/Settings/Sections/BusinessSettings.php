@@ -6,6 +6,7 @@ use Filament\Forms\Components\TextInput;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentCms\CmsImage;
 use Vortechron\FilamentCms\Settings\SettingsSection;
+use Vortechron\FilamentCms\Settings\ShopValue;
 
 class BusinessSettings extends SettingsSection
 {
@@ -44,6 +45,16 @@ class BusinessSettings extends SettingsSection
             'legal_name' => ['nullable', 'string', 'max:160'],
             'registration_number' => ['nullable', 'string', 'max:40'],
             'logo' => ['nullable', 'string', 'max:500'],
+        ];
+    }
+
+    public function shopValues(): array
+    {
+        return [
+            ShopValue::text('site.name', __('filament-cms::settings.name'), fn (): mixed => $this->setting('name')),
+            ShopValue::text('site.legal_name', __('filament-cms::settings.legal_name'), fn (): mixed => $this->setting('legal_name')),
+            ShopValue::text('site.registration', __('filament-cms::settings.registration_number'), fn (): mixed => $this->setting('registration_number')),
+            ShopValue::image('site.logo', __('filament-cms::settings.logo'), fn (): ?string => cms_image($this->setting('logo'))),
         ];
     }
 }

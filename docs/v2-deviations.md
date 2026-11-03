@@ -47,10 +47,13 @@ and C3 and C4 both started at 20.
 
 ## Shop info
 
-12. **Four hooks on `SettingsSection`, not one.** `builderFields()` as the contract says, plus `builderRules()`
+12. **Five hooks on `SettingsSection`, not one.** `builderFields()` as the contract says, plus `builderRules()`
     (block editor fields have no validation rules, and the save must check like the Tetapan screen),
     `toBuilderValues()` and `fromBuilderValues()` (Tetapan saves phones as a plain list, the builder's list holds
-    rows `['number' => ...]`).
+    rows `['number' => ...]`), and `shopValues()` (the short codes, `ShopValue` objects, the section gives the
+    builder). A protected `setting($field)` helper reads the section's saved value when a page is drawn.
+    The `site.*` registration moved out of `SiteValues` into the four standard sections; `SiteValues` now
+    registers what the sections of the settings page (or `StandardSettings` when none is set) declare.
 13. **A save checks the stored values with the sent ones on top**, then cleans with `Field::cleanFields`. A field
     the builder did not send keeps its stored value, not the field default. Empty text is saved as null, as
     Tetapan does.

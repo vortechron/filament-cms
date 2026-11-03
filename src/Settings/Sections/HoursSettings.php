@@ -6,6 +6,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentCms\Settings\SettingsSection;
+use Vortechron\FilamentCms\Settings\ShopValue;
 
 class HoursSettings extends SettingsSection
 {
@@ -53,5 +54,35 @@ class HoursSettings extends SettingsSection
             'days.*.time' => ['required', 'string', 'max:60'],
             'note' => ['nullable', 'string', 'max:160'],
         ];
+    }
+
+    public function shopValues(): array
+    {
+        return [
+            ShopValue::text('site.hours', __('filament-cms::settings.hours'), fn (): string => implode("\n", $this->lines())),
+            ShopValue::text('site.hours_note', __('filament-cms::values.hours_note'), fn (): mixed => $this->setting('note')),
+        ];
+    }
+
+    /**
+     * Each opening hours row as "days: time".
+     *
+     * @return list<string>
+     */
+    private function lines(): array
+    {
+        $rows = $this->setting('days');
+        $lines = [];
+
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            $days = is_array($row) && is_string($row['days'] ?? null) ? trim($row['days']) : '';
+            $time = is_array($row) && is_string($row['time'] ?? null) ? trim($row['time']) : '';
+
+            if ($days !== '' || $time !== '') {
+                $lines[] = $days !== '' && $time !== '' ? "{$days}: {$time}" : $days.$time;
+            }
+        }
+
+        return $lines;
     }
 }

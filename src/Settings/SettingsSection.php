@@ -2,6 +2,7 @@
 
 namespace Vortechron\FilamentCms\Settings;
 
+use InvalidArgumentException;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentCms\CmsSection;
 
@@ -42,6 +43,33 @@ abstract class SettingsSection extends CmsSection
     public function builderRules(): array
     {
         return [];
+    }
+
+    /**
+     * The short codes (dynamic values) this section gives the page builder,
+     * for example `site.phone`. They are registered with this section's key
+     * as the shop info group. Resolvers run when a page is drawn, so read
+     * the settings with setting(), not before.
+     *
+     * @return list<ShopValue>
+     */
+    public function shopValues(): array
+    {
+        return [];
+    }
+
+    /**
+     * One saved value of this section as the page being drawn sees it (the
+     * builder preview swaps the settings), or null when the project's
+     * settings have no such section.
+     */
+    protected function setting(string $field): mixed
+    {
+        try {
+            return cms_settings()->section($this->key)->get($field);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
     }
 
     /**

@@ -11,7 +11,7 @@ use Vortechron\FilamentCms\Mcp\Reply;
 use Vortechron\FilamentCms\Mcp\SettingsInfo;
 
 #[Name('get_settings')]
-#[Description('The site settings (business, contact, hours, social, seo, and any the site adds), each section with its fields and its values (saved values over the defaults), in the shape save_settings takes. Pages show them through dynamic values such as site.phone. A picture (the logo) is a path on the site\'s disk. "editable": false means only the panel can change that section.')]
+#[Description('The site settings (business, contact, hours, social, seo, and any the site adds), each section with its fields and its values (saved values over the defaults), in the shape save_settings takes. Pages show them through dynamic values such as site.phone; own block text fields may hold {key} short codes, and the dynamic_values of site_overview list the keys. A picture (the logo) is a path on the site\'s disk. "editable": false means only the panel can change that section.')]
 #[IsReadOnly]
 class GetSettings extends Tool
 {

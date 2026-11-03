@@ -83,13 +83,15 @@ final class EntryValues
      */
     private static function value(array $field, mixed $value): ?string
     {
-        // A stored @key points at a site value; one level only.
+        // A stored @key points at a site value, and a {key} short code in
+        // the words is filled with one; one level only.
         $plain = new RenderContext;
 
         return match ($field['type']) {
             'link' => app(DynamicValues::class)->link($value, $plain),
             'image' => app(DynamicValues::class)->media($value, $plain),
             'select' => self::label($field, $value),
+            'text', 'textarea' => is_scalar($value) && ! is_bool($value) ? app(DynamicValues::class)->fill((string) $value, $plain) : null,
             default => is_scalar($value) && ! is_bool($value) ? (string) $value : null,
         };
     }
