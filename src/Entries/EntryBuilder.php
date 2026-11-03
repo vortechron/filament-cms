@@ -112,10 +112,13 @@ final class EntryBuilder
 
         $page = self::page($document);
         $values = [...($page === null ? [] : SitePageRenderer::pageValues($page)), ...self::entryValues($document)];
-        $preview = fn (): string => app(SitePageRenderer::class)->preview($document, $sections, $values)->render();
 
-        // A card is drawn as a card: a list inside it shows its note only.
-        return $document->kind === Document::CARD ? EntryList::drawingCard($preview) : $preview();
+        if ($document->kind !== Document::CARD) {
+            return app(SitePageRenderer::class)->preview($document, $sections, $values)->render();
+        }
+
+        // A card is drawn as a card: a list inside it shows its note only, a form is not connected.
+        return EntryList::drawingCard(fn (): string => app(SitePageRenderer::class)->preview($document, $sections, EntryList::cardValues([], $values))->render());
     }
 
     /**

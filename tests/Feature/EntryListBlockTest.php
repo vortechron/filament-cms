@@ -18,10 +18,13 @@ use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\Entry;
 use Vortechron\FilamentCms\Models\SitePage;
+use Vortechron\FilamentCms\Tests\Concerns\MakesForms;
 use Vortechron\FilamentCms\Tests\TestCase;
 
 class EntryListBlockTest extends TestCase
 {
+    use MakesForms;
+
     private function registerTypes(): void
     {
         app(EntryTypes::class)
@@ -213,6 +216,27 @@ class EntryListBlockTest extends TestCase
 
         $this->assertSame(1, substr_count($html, 'class="cms-entries '));
         $this->assertSame(2, substr_count($html, 'cms-entries-item'));
+    }
+
+    public function test_a_form_in_a_card_is_not_connected_so_no_visitor_sends_into_a_404(): void
+    {
+        $this->registerTypes();
+        $this->entry('product', 'Kopi');
+        $card = EntryTemplates::findOrCreate(app(EntryTypes::class)->get('product'), Document::CARD);
+        app(DocumentStore::class)->save($card, ['sections' => [self::formSection('card0001')]], null);
+        $this->listPage(['type' => 'product']);
+
+        $html = $this->main($this->get('/senarai')->assertOk()->getContent());
+
+        $this->assertStringContainsString('data-form="card0001.frm00001"', $html);
+        $this->assertStringNotContainsString('action=', $html);
+        $this->assertMatchesRegularExpression('/<button type="submit"[^>]*disabled/', $html);
+
+        $this->actingAsClient();
+        $builder = Livewire::test(BuildSitePage::class, ['record' => $card->getKey()])
+            ->call('previewPageBuilder', ['sections' => [self::formSection('card0001')]])
+            ->effects['returns'][0];
+        $this->assertStringContainsString(__('filament-block-editor::preview.form_not_connected'), $builder);
     }
 
     public function test_in_the_builder_the_cards_are_not_sections_of_the_page(): void

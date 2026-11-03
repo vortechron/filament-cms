@@ -3,6 +3,7 @@
 namespace Vortechron\FilamentCms\Entries;
 
 use Closure;
+use Illuminate\Support\Arr;
 use Vortechron\FilamentBlockEditor\Blocks\BlockRegistry;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentBlockEditor\Blocks\OwnBlock;
@@ -10,6 +11,7 @@ use Vortechron\FilamentBlockEditor\Content\PageContent;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
+use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\Entry;
 
@@ -121,13 +123,28 @@ final class EntryList
     }
 
     /**
+     * The values a card is drawn with: the page's and the entry's, without
+     * `document.id`. A form in a card is never looked for when it is sent
+     * (Forms\FormLocator), so it is drawn not connected (its button
+     * disabled) instead of posting into a 404.
+     *
+     * @param  array<string, mixed>  $page
+     * @param  array<string, mixed>  $entry
+     * @return array<string, mixed>
+     */
+    public static function cardValues(array $page, array $entry): array
+    {
+        return [...Arr::except($page, CmsFormEndpoint::VALUE), ...$entry, CmsFormEndpoint::VALUE => null];
+    }
+
+    /**
      * One entry drawn with the card design, as visitors see it.
      *
      * @param  list<array<string, mixed>>  $card
      */
     private function designed(array $card, Entry $entry, RenderContext $context): string
     {
-        $html = self::drawingCard(fn (): string => $this->pages->render($card, new RenderContext(values: [...$context->values, ...EntryValues::of($entry)])));
+        $html = self::drawingCard(fn (): string => $this->pages->render($card, new RenderContext(values: self::cardValues($context->values, EntryValues::of($entry)))));
 
         return $context->forBuilder ? Inert::html($html) : $html;
     }

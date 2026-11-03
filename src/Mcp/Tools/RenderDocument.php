@@ -62,10 +62,12 @@ class RenderDocument extends Tool
     private static function sections(Document $document, PageRenderer $pages): string
     {
         $page = EntryBuilder::page($document);
-        $values = [...($page === null ? self::homeValues() : SitePageRenderer::pageValues($page)), ...EntryBuilder::entryValues($document)];
+        $pageValues = $page === null ? self::homeValues() : SitePageRenderer::pageValues($page);
+        $isCard = $document->kind === Document::CARD;
+        $values = $isCard ? EntryList::cardValues($pageValues, EntryBuilder::entryValues($document)) : [...$pageValues, ...EntryBuilder::entryValues($document)];
         $draw = fn (): string => $pages->render(PageValue::normalize($document->content ?? [])['sections'], new RenderContext(values: $values));
 
-        return '<div class="sf-page">'.($document->kind === Document::CARD ? EntryList::drawingCard($draw) : $draw()).'</div>';
+        return '<div class="sf-page">'.($isCard ? EntryList::drawingCard($draw) : $draw()).'</div>';
     }
 
     /**
