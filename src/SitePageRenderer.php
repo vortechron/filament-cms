@@ -3,32 +3,84 @@
 namespace Vortechron\FilamentCms;
 
 use Illuminate\Contracts\View\View;
+use Vortechron\FilamentBlockEditor\Content\PageContent;
+use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
+use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
 
 /**
  * Draws a site page inside the project's own page view
  * (config filament-cms.page_view), for visitors and for the builder's
- * live preview.
+ * live preview. The view gets:
+ *
+ * - `$page`, `$sections`, `$content` (the sections as HTML), `$context`, `$isBuilderPreview`;
+ * - `$header` and `$footer`: the header and footer documents as HTML, each in
+ *   `<div data-part="header|footer" class="sf-page">`, or '' when there is none
+ *   or it has no visible section.
  */
 final class SitePageRenderer
 {
+    public function __construct(private readonly PageRenderer $pages) {}
+
     /**
+     * A page for visitors, or its builder preview with unsaved sections. In
+     * the preview the header and footer are drawn as visitors see them.
+     *
      * @param  list<array<string, mixed>>|null  $sections  unsaved sections for a preview
      */
     public function view(SitePage $page, ?array $sections = null, bool $forBuilder = false): View
     {
-        $context = new RenderContext(forBuilder: $forBuilder, isPreview: $forBuilder, values: self::pageValues($page));
-        $sections ??= $page->sections ?? [];
+        $values = self::pageValues($page);
+        $context = new RenderContext(forBuilder: $forBuilder, isPreview: $forBuilder, values: $values);
+        $sections ??= $page->sections;
 
-        return view(config('filament-cms.page_view', 'cms.page'), [
-            'page' => $page,
-            'sections' => $sections,
-            'context' => $context,
-            'content' => app(PageRenderer::class)->render($sections, $context),
-            'isBuilderPreview' => $forBuilder,
+        return $this->pageView($page, $sections, $context, [
+            'content' => $this->pages->render($sections, $context),
+            'header' => $this->part(Document::HEADER, $values),
+            'footer' => $this->part(Document::FOOTER, $values),
         ]);
+    }
+
+    /**
+     * The builder preview of a document that is not a page, inside the page
+     * view of the home page. A header or footer is drawn in its place, with
+     * the home page's content (in `<div data-part="page">`) so it looks
+     * real; a synced section, card or single is drawn as the content.
+     *
+     * @param  list<array<string, mixed>>  $sections  the unsaved sections
+     */
+    public function preview(Document $document, array $sections): View
+    {
+        $home = SitePage::query()->where('path', '/')->first() ?? new SitePage(['title' => $document->title, 'path' => '/']);
+        $values = self::pageValues($home);
+        $context = new RenderContext(forBuilder: true, isPreview: true, values: $values);
+        $edited = '<div class="sf-page" data-preview>'.$this->pages->render($sections, $context).'</div>';
+        $isPart = in_array($document->kind, Document::PARTS, true);
+
+        return $this->pageView($home, $isPart ? $home->sections : $sections, $context, [
+            'content' => $isPart ? self::wrap('page', $this->pages->render($home->sections, new RenderContext(values: $values))) : $this->pages->render($sections, $context),
+            'header' => $document->kind === Document::HEADER ? $edited : $this->part(Document::HEADER, $values),
+            'footer' => $document->kind === Document::FOOTER ? $edited : $this->part(Document::FOOTER, $values),
+        ]);
+    }
+
+    /**
+     * The header or footer as visitors see it, wrapped, or '' when there is
+     * none or it has no visible section.
+     *
+     * @param  array<string, mixed>  $values  dynamic values of the page it is drawn on
+     */
+    public function part(string $kind, array $values = []): string
+    {
+        $sections = PageValue::normalize(Document::firstOfKind($kind)?->content ?? [])['sections'];
+
+        if (PageContent::visible($sections) === []) {
+            return '';
+        }
+
+        return self::wrap($kind, $this->pages->render($sections, new RenderContext(values: $values)));
     }
 
     /**
@@ -39,5 +91,25 @@ final class SitePageRenderer
     public static function pageValues(SitePage $page): array
     {
         return ['page.title' => (string) $page->title, 'page.url' => $page->url()];
+    }
+
+    private static function wrap(string $part, string $html): string
+    {
+        return '<div data-part="'.e($part).'" class="sf-page">'.$html.'</div>';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sections
+     * @param  array{content: string, header: string, footer: string}  $html
+     */
+    private function pageView(SitePage $page, array $sections, RenderContext $context, array $html): View
+    {
+        return view(config('filament-cms.page_view', 'cms.page'), [
+            'page' => $page,
+            'sections' => $sections,
+            'context' => $context,
+            ...$html,
+            'isBuilderPreview' => $context->forBuilder,
+        ]);
     }
 }
