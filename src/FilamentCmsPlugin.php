@@ -8,6 +8,7 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Vortechron\FilamentCms\Filament\Pages\EditContent;
 use Vortechron\FilamentCms\Filament\Pages\EditSettings;
+use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\Filament\Resources\FormSubmissions\FormSubmissionResource;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
 use Vortechron\FilamentCms\Filament\Resources\SiteSections\SiteSectionResource;
@@ -30,6 +31,8 @@ class FilamentCmsPlugin implements Plugin
     protected bool $hasSections = true;
 
     protected bool $hasForms = true;
+
+    protected bool $hasEntries = true;
 
     public static function make(): static
     {
@@ -113,9 +116,31 @@ class FilamentCmsPlugin implements Plugin
         return $this;
     }
 
+    /**
+     * One screen per entry type under "Kandungan" (see EntryTypes). On by
+     * default. The builder parts (Bina, the card and entry page designs)
+     * also need sitePages().
+     */
+    public function entries(bool $condition = true): static
+    {
+        $this->hasEntries = $condition;
+
+        return $this;
+    }
+
     public function hasForms(): bool
     {
         return $this->hasForms;
+    }
+
+    public function hasEntries(): bool
+    {
+        return $this->hasEntries;
+    }
+
+    public function hasSitePages(): bool
+    {
+        return $this->hasSitePages;
     }
 
     public function isDeveloper(?Authenticatable $user): bool
@@ -137,6 +162,10 @@ class FilamentCmsPlugin implements Plugin
 
         if ($this->hasForms) {
             $panel->resources([FormSubmissionResource::class]);
+        }
+
+        if ($this->hasEntries) {
+            $panel->resources([EntryResource::class]);
         }
     }
 

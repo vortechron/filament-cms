@@ -48,7 +48,10 @@ class BuilderKindsTest extends TestCase
      */
     public static function buildableKinds(): array
     {
-        return array_combine(BuildSitePage::KINDS, array_map(fn (string $kind): array => [$kind], BuildSitePage::KINDS));
+        // An entry's body has its own tests (EntryBuildersTest): it needs a registered type.
+        $kinds = array_values(array_diff(BuildSitePage::KINDS, [Document::ENTRY]));
+
+        return array_combine($kinds, array_map(fn (string $kind): array => [$kind], $kinds));
     }
 
     #[DataProvider('buildableKinds')]
@@ -65,7 +68,7 @@ class BuilderKindsTest extends TestCase
     {
         $this->actingAsClient();
 
-        foreach ([Document::TEMPLATE, Document::KIT, Document::ENTRY] as $kind) {
+        foreach ([Document::TEMPLATE, Document::KIT] as $kind) {
             $this->get(BuildSitePage::getUrl(['record' => $this->document($kind)]))->assertNotFound();
         }
     }

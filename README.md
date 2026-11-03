@@ -7,6 +7,8 @@ You build the page in Blade and CSS. The client edits its text, photos and lists
 - **Site pages** built full screen in the page builder, with a shared **header and footer**, **synced sections**
   (one section many pages show), **saved sections**, the site's **design kit**, and the shop's details as
   **dynamic values** (`site.phone`, `site.whatsapp`, ...).
+- **Entries**: post types defined in code (products, events, ...), each with its own screen, a list block, a card
+  design and its own pages.
 - **Pages and sections**: each page is a list of sections. A section declares its fields with normal Filament components and the text it shows before anything is saved.
 - **Lists**: use a Filament `Repeater` with `maxItems()`. The client adds, removes and reorders items up to the limit.
 - **Hide a section**: the client can switch a section off, unless the section says it cannot be hidden.
@@ -14,7 +16,8 @@ You build the page in Blade and CSS. The client edits its text, photos and lists
 - **Versions**: the newest 20 saves of every page are kept. Developers can restore one.
 - **Photos**: shrunk in the browser to at most 1920 pixels before upload.
 
-The package never draws the public page and ships no CSS. Each project owns its look.
+The package never draws the public page's design. Each project owns its look; the only CSS it ships is the small,
+optional stylesheet of the plain entry card and entry page (see Entries).
 
 ## Install
 
@@ -173,6 +176,91 @@ still save.
 Email needs a real mailer in `.env` (`MAIL_MAILER=smtp` or `ses`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`). With
 `log` or `array` no email is sent (a log line says so). The shop email comes from Tetapan, Hubungi. The webhook
 needs PHP's curl extension.
+
+## Entries
+
+Entries are like WordPress post types: you define a **type** and its fields in code, the client adds the
+entries. Each type gets its own screen under **Kandungan**, a list block for the page builder, and (when it has a
+path) a page for every entry.
+
+Register the types in a service provider of the project:
+
+```php
+use Illuminate\Support\ServiceProvider;
+use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentCms\Entries\EntryType;
+use Vortechron\FilamentCms\Entries\EntryTypes;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        app(EntryTypes::class)->register(
+            EntryType::make('product')               // key: a-z, 0-9 and dashes, 40 at most
+                ->label('Produk')
+                ->pluralLabel('Produk')
+                ->icon('heroicon-o-cube')
+                ->fields([
+                    Field::text('price')->label('Harga'),
+                    Field::image('photo')->label('Gambar'),
+                    Field::textarea('summary')->label('Ringkasan'),
+                    Field::select('size')->label('Saiz')->options(['s' => 'Kecil', 'l' => 'Besar']),
+                    Field::link('shopee')->label('Beli di Shopee'),
+                    Field::list('notes')->label('Nota')->fields([Field::text('line')->label('Baris')])->maxItems(5),
+                ])
+                ->path('/produk')                    // each entry at /produk/{slug}; ->path(null): no pages
+                ->body(true)                         // a body built in the page builder ("Bina")
+                ->sort('manual'),                    // newest, title or manual (the client drags them)
+        );
+    }
+}
+```
+
+Field names are lowercase letters, digits and underscores (`title`, `url` and `slug` are taken). The path may not
+be `/` or start with an address the site uses (`admin`, `livewire`, `storage`, ...). Turn the screens off with
+`FilamentCmsPlugin::make()->entries(false)`; "Bina" and the designs below also need the Halaman screen on.
+
+- **The screen** (`/admin/entries/product`): the entries with title, published and updated; a form made from the
+  fields (text, textarea, select, toggle, number, link with `CmsUrl`, picture with `CmsImage`, list as a
+  repeater); publish, unpublish, delete, drag to reorder for `manual`, and "Bina" for the body. An `Entry` policy
+  (`Models\Entry`) decides who may open and change them.
+- **Addresses**: `{path}/{slug}`. The slug is made from the title, stays when the title changes, and can be edited;
+  a taken one gets `-2`. Changing a type's path in code moves each entry when it is next saved.
+- **Reka kad** designs how the list block draws one entry; **Reka halaman entri** designs the top of each entry's
+  page. Both open the page builder and offer the entry's values as dynamic values, with the first entry as the
+  preview.
+- **The list block** "Senarai entri" (`cms-entries`) shows the published entries of a type: how many (1 to 48),
+  1 to 4 columns, the order, and a text for when there are none. With no card designed it draws a plain card
+  (first picture, title, first textarea, a link to the page). A list inside a card is never drawn.
+- **Entry pages** are drawn in your `page_view` with `$page` as the entry: the entry page design, or a plain
+  layout of the fields when there is none, then the entry's body. `$page->seo_title` is the title and
+  `$page->seo_description` the first textarea.
+
+The plain card and page are styled with the design kit's variables. Print their small stylesheet in the head:
+
+```blade
+<x-filament-block-editor::styles />
+<x-filament-cms::entries-styles />
+```
+
+| Entry value | Kind |
+| --- | --- |
+| `entry.title`, and `entry.{field}` for text, textarea, number and select fields (the option's label) | Text |
+| `entry.url` (its page), and `entry.{field}` for link fields | Link |
+| `entry.{field}` for image fields | Picture |
+
+Save entries in code through `EntryStore` (it uses `DocumentStore`, so versions and cleaning work the same):
+
+```php
+use Vortechron\FilamentCms\Entries\EntryStore;
+use Vortechron\FilamentCms\Models\Entry;
+
+app(EntryStore::class)->save(new Entry(['entry_type' => 'product']), [
+    'title' => 'Kopi Kampung',
+    'is_published' => true,
+    'fields' => ['price' => 'RM 12', 'photo' => 'https://example.com/kopi.jpg'],
+], $user);   // ['ok' => true] or ['ok' => false, 'errors' => [...]]
+```
 
 ## A page and its sections
 

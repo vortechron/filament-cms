@@ -1,0 +1,115 @@
+/*
+ * The built-in entry cards and entry page of filament-cms, drawn with the
+ * page's design kit variables. Print it in the page <head> with
+ * <x-filament-cms::entries-styles />, after <x-filament-block-editor::styles />.
+ * Your own CSS after it wins.
+ */
+.cms-entries {
+    --cms-entries-columns: 3;
+    display: grid;
+    grid-template-columns: repeat(var(--cms-entries-columns), minmax(0, 1fr));
+    gap: 1.25rem;
+}
+
+.cms-entries-1 { --cms-entries-columns: 1; }
+.cms-entries-2 { --cms-entries-columns: 2; }
+.cms-entries-4 { --cms-entries-columns: 4; }
+
+@media (max-width: 767px) {
+    .cms-entries { --cms-entries-columns: 1; }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+    .cms-entries-3,
+    .cms-entries-4 { --cms-entries-columns: 2; }
+}
+
+.cms-entries-item { min-width: 0; }
+
+.cms-entry-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border: var(--sf-card-line, 1px solid rgb(15 23 42 / 0.08));
+    border-radius: var(--sf-radius, 1.25rem);
+    background: var(--sf-card, #fff);
+    box-shadow: var(--kit-shadow-sm, none);
+    color: var(--sf-text, #475569);
+}
+
+.cms-entry-card-photo {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.cms-entry-card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.25rem;
+}
+
+.cms-entry-card-title {
+    margin: 0;
+    color: var(--sf-ink, #0f172a);
+    font-family: var(--sf-heading-font, inherit);
+    font-size: 1.125rem;
+    font-weight: var(--sf-heading-weight, 800);
+}
+
+.cms-entry-card-text { margin: 0; line-height: 1.6; }
+
+.cms-entry-card-link {
+    margin-top: auto;
+    color: var(--sf-accent, #2563eb);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.cms-entries-empty,
+.cms-entries-note { margin: 0; color: var(--sf-text, #475569); }
+
+.cms-entries-note {
+    padding: 1rem;
+    border: 1px dashed currentColor;
+    border-radius: var(--sf-radius, 1.25rem);
+    font-size: 0.875rem;
+}
+
+.cms-entry {
+    padding: clamp(2.75rem, 6.5vw, 5.5rem) var(--sf-gutter, 1.5rem);
+    color: var(--sf-text, #475569);
+}
+
+.cms-entry-inner {
+    display: grid;
+    gap: 1rem;
+    max-width: 48rem;
+    margin: 0 auto;
+}
+
+.cms-entry-title {
+    margin: 0;
+    color: var(--sf-ink, #0f172a);
+    font-family: var(--sf-heading-font, inherit);
+    font-weight: var(--sf-heading-weight, 800);
+    letter-spacing: var(--sf-heading-tracking, -0.025em);
+}
+
+.cms-entry-photo {
+    display: block;
+    width: 100%;
+    border-radius: var(--sf-radius, 1.25rem);
+}
+
+.cms-entry-text,
+.cms-entry-field { margin: 0; line-height: 1.7; }
+
+.cms-entry-field span { color: var(--sf-ink, #0f172a); font-weight: 600; }
+
+.cms-entry-field a { color: var(--sf-accent, #2563eb); font-weight: 600; }

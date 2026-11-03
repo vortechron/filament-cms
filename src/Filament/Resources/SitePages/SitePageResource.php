@@ -24,6 +24,7 @@ use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\ManageSitePages;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\CmsRevision;
+use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
 use Vortechron\FilamentCms\SitePageStore;
 
@@ -67,7 +68,8 @@ class SitePageResource extends Resource
                     ->maxLength(120)
                     ->dehydrateStateUsing(fn (?string $state): string => SitePage::cleanPath($state))
                     ->rule(fn (?SitePage $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
-                        $taken = SitePage::query()
+                        // Pages and entries share one address column.
+                        $taken = Document::query()
                             ->where('path', SitePage::cleanPath(is_string($value) ? $value : null))
                             ->when($record, fn ($query) => $query->whereKeyNot($record->getKey()))
                             ->exists();

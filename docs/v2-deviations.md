@@ -127,3 +127,79 @@ chose differently or added detail, and why. 3 November 2026.
     streamed file, not Filament's exporter (that one needs a queue and its own tables): UTF-8 with a byte order
     mark, one column per field name seen in the filtered rows, and a `'` before a value a spreadsheet would run as
     a formula.
+
+## C3: entries
+
+Track C3 (entries), 3 November 2026.
+
+### Shapes and names
+
+20. **Classes.** `Entries\EntryType` (the definition) and `Entries\EntryTypes` (the singleton registry, with
+    `register`, `forget`, `has`, `get`, `all`). `Models\Entry` is kind `entry` (a global scope, like `SitePage`), so a
+    host writes an `EntryPolicy` for it. `Entries\EntryStore::save(Entry, $data, $user, ?$developer)` saves the
+    title, slug, publish switch and content in one save; the content part goes through `DocumentStore`.
+21. **Field names** must match `[a-z][a-z0-9_]*` (stricter than `Field`), so each one is a valid dynamic value key
+    `entry.{name}`. A name given twice is refused. `RESERVED_PATHS` for a type path copies the prefixes in
+    `FilamentCms::routes()`; keep the two in step. Two types may not share a path.
+22. **`DocumentStore` for kind `entry`** takes `fields` and/or `sections` (a bare list counts as sections). The part
+    not sent keeps its stored value, so the page builder (sections only) and the entry form (fields only) never
+    erase each other. An unregistered `entry_type` is refused (`entry_type`), `fields` that is not an array is refused
+    (`fields`). Sections sent for a type without a body are dropped, not refused.
+23. **Slug.** No slug column: the slug is the last part of `path`. A new entry's slug comes from its title (the
+    type key when the title has no letters), at most 80 characters. It stays when the title changes; a given slug
+    replaces it, an empty one makes it from the title again. "Unique within the type" became **unique among all
+    documents**, because pages and entries share the unique `path` column. For the same reason the Halaman form now
+    refuses a page address an entry already has (it used to check pages only, and would have hit the index).
+24. **A type path changed in code** moves each entry when it is next saved. Until then the old address keeps
+    working. A type changed to `path(null)` (or removed) shows no entry pages at all.
+25. **Image fields** store a public address. The form's upload field works with paths on the CMS disk; a submitted
+    path is kept only when it is a file of CmsImage's types directly inside `cms/` (the same rule as the logo, C1
+    deviation 14). A stored picture from elsewhere (an MCP save of an `https://` address) is kept when the form sends
+    none, because the upload field can not show it; inside a list it is dropped on the next form save.
+
+### Screens
+
+26. **One resource, one page class**: `EntryResource` with the page `ManageEntries` at `/admin/entries/{type}`.
+    The resource returns one navigation item per type (`getNavigationItems()`), sort -8 in "Kandungan". Create and
+    edit open in a modal, as on the Seksyen screen. Publish and unpublish are row actions that save through
+    `EntryStore`; the list shows "Diterbitkan" as an icon.
+27. **"Reka kad" and "Reka halaman entri"** are actions that make the design on first use (a Livewire call, not a
+    GET) and redirect to `BuildSitePage`. "Reka halaman entri" shows only for a type with a path. Both need the
+    Halaman screen on and follow the SitePage rule (C1 deviation 17). An entry's body follows the Entry policy
+    (`EntryResource::canEdit($entry)`).
+28. **The builder for an entry** opens only for a registered type with `body(true)` while entries are on, else 404.
+    Its `kind` is `page`, `viewUrl` is the entry's page when published, and every entry, card and single goes back
+    to the type's screen. With `entries(false)` the builder does not offer the `cms-entries` block.
+
+### Dynamic values and drawing
+
+29. **`entry.*` values**: text, textarea and number fields are text; a select is its option's **label**; link and
+    image fields are links and pictures (a stored `@key` is followed one level, then checked). Toggles and lists are
+    not values. `entry.url` is null for a type without a path. Labels: "Tajuk" / "Alamat entri", then each field's
+    label; the group is the type's label.
+30. **Per-builder values (block editor gap).** The block editor's trait builds `dynamicValues` from the registry
+    only, with an empty `RenderContext` for previews; it has no hook for a builder's own values. `BuildSitePage`
+    already overrides `getPageBuilderOptions()`, so it appends the type's `entry.*` definitions there. **Block editor
+    could add:** a `getPageBuilderDynamicValues(): array` hook merged after the registry's, and a
+    `getPageBuilderRenderValues(): array` passed as the `RenderContext` values of `definitions()`, so `page.*`
+    previews work too.
+31. **Previews.** A card or single is drawn with the type's first entry (published ones first, in the type's
+    order). An entry body's preview is its real page: the single design as visitors see it, inside
+    `<div data-part="page" class="sf-page">`, then the editable body.
+32. **Sections that are not the edited value carry `data-entry-block-id`** in the builder (cards in a list block,
+    the single design above a body), not `data-block-id`, because the builder's canvas, drag and drop and swaps find
+    sections by `data-block-id` anywhere in the frame (`Entries\Inert`). Visitors get the normal wrappers.
+33. **The list block** is registered (and re-registered with the new type options) by `EntryTypes::register()` and
+    forgotten when the last type goes, so it works whatever order the providers boot in. Its labels are translated
+    then. `order` defaults to `newest`, `columns` to `3`, `limit` to 6. A stored type that is no longer registered
+    falls back to the first type (a select field's rule). Cards are drawn as visitors see them. A list inside a card,
+    also in the card's builder preview, draws nothing (a note in the builder). A designed card's style rules are
+    added once per card drawn (the style sheet does not merge repeats).
+34. **The plain card and page** use the design kit's variables in `resources/css/entries.css`, printed inline by
+    `<x-filament-cms::entries-styles />`, instead of borrowing core block classes from the block editor's page CSS.
+35. **Entry pages.** `ShowSitePage` looks for a published page first, then a published entry of a registered type
+    with a path. The page view gets `$page` (the entry, with `seo_title` = its title and `seo_description` = its first
+    textarea, at most 160 characters, set on a copy, not saved), `$sections` (its body), `$content` (design or plain
+    layout, then the body), `$header`, `$footer`. `SitePageRenderer` gained `layout()` for this, and
+    `preview(..., $values)` for the card and single previews. With `entries(false)` entry pages are still served
+    (drawing has no panel to ask).

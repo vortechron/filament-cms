@@ -10,10 +10,14 @@ use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentBlockEditor\Filament\Concerns\InteractsWithPageBuilder;
 use Vortechron\FilamentCms\DocumentStore;
+use Vortechron\FilamentCms\Entries\EntryBuilder;
+use Vortechron\FilamentCms\Entries\EntryList;
+use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
 use Vortechron\FilamentCms\Filament\Resources\SiteSections\SiteSectionResource;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\Models\Entry;
 use Vortechron\FilamentCms\Models\SitePage;
 use Vortechron\FilamentCms\SectionLibrary;
 use Vortechron\FilamentCms\SiteInfo;
@@ -42,7 +46,7 @@ class BuildSitePage extends Page
     /**
      * The kinds this page builds.
      */
-    public const KINDS = [Document::PAGE, Document::HEADER, Document::FOOTER, Document::SECTION, Document::CARD, Document::SINGLE];
+    public const KINDS = [Document::PAGE, Document::HEADER, Document::FOOTER, Document::SECTION, Document::CARD, Document::SINGLE, Document::ENTRY];
 
     protected static string $resource = SitePageResource::class;
 
@@ -61,13 +65,19 @@ class BuildSitePage extends Page
             return Document::findOrCreatePart((string) $key);
         }
 
-        return SitePage::query()->find($key)
+        $document = SitePage::query()->find($key)
+            ?? Entry::query()->find($key)
             ?? Document::query()->whereIn('kind', self::KINDS)->whereKey($key)->firstOrFail();
+
+        abort_unless(EntryBuilder::buildable($document), 404);
+
+        return $document;
     }
 
     /**
      * Only someone who may edit pages may open or use the builder: for a
-     * page, that page; for every other kind, pages in general.
+     * page, that page; for an entry, that entry (its Entry policy); for
+     * every other kind, pages in general.
      */
     protected function authorizePageBuilder(): void
     {
@@ -76,6 +86,10 @@ class BuildSitePage extends Page
 
     public static function mayBuild(?Document $document): bool
     {
+        if ($document instanceof Entry) {
+            return EntryResource::canEdit($document);
+        }
+
         return SitePageResource::canEdit($document instanceof SitePage ? $document : new SitePage);
     }
 
@@ -97,6 +111,13 @@ class BuildSitePage extends Page
 
         if ($this->plugin()->hasSections()) {
             $options['templates'] = [...$options['templates'] ?? [], ...app(SectionLibrary::class)->templates()];
+        }
+
+        // The block editor has no hook for one builder's own values yet.
+        $options['dynamicValues'] = [...$options['dynamicValues'] ?? [], ...EntryBuilder::dynamicValues($this->record)];
+
+        if (! $this->plugin()->hasEntries()) {
+            $options['blocks'] = array_values(array_filter($options['blocks'] ?? [], fn (array $block): bool => $block['kind'] !== EntryList::KIND));
         }
 
         return $options;
@@ -145,6 +166,10 @@ class BuildSitePage extends Page
     {
         $renderer = app(SitePageRenderer::class);
 
+        if (EntryBuilder::type($this->record) !== null) {
+            return EntryBuilder::preview($this->record, $sections);
+        }
+
         return ($this->record instanceof SitePage
             ? $renderer->view($this->record, $sections, forBuilder: true)
             : $renderer->preview($this->record, $sections))->render();
@@ -152,6 +177,10 @@ class BuildSitePage extends Page
 
     protected function getPageBuilderBackUrl(): ?string
     {
+        if (($entries = EntryBuilder::backUrl($this->record)) !== null) {
+            return $entries;
+        }
+
         return $this->record->kind === Document::SECTION && $this->plugin()->hasSections()
             ? SiteSectionResource::getUrl()
             : SitePageResource::getUrl();
@@ -159,12 +188,15 @@ class BuildSitePage extends Page
 
     protected function getPageBuilderViewUrl(): ?string
     {
-        return $this->record instanceof SitePage && $this->record->is_published ? $this->record->url() : null;
+        return ($this->record instanceof SitePage || $this->record instanceof Entry) && $this->record->is_published ? $this->record->url() : null;
     }
 
+    /**
+     * The builder knows no "entry" kind: an entry's body is built as a page.
+     */
     protected function getPageBuilderKind(): string
     {
-        return $this->record->kind;
+        return $this->record->kind === Document::ENTRY ? Document::PAGE : $this->record->kind;
     }
 
     protected function isPageBuilderDeveloper(): bool
