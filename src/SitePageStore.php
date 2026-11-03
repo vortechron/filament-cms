@@ -3,49 +3,41 @@
 namespace Vortechron\FilamentCms;
 
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Facades\DB;
-use Vortechron\FilamentBlockEditor\Content\PageContent;
+use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\SitePage;
 
 /**
- * Saves what the client built for a site page, cleaned by the page builder's
- * rules, and keeps the newest versions so a developer can bring one back.
+ * Saves a site page through DocumentStore, for callers written before
+ * documents existed. It throws a ValidationException when the value is
+ * refused. New code calls DocumentStore directly.
  */
 final class SitePageStore
 {
+    public function __construct(private readonly DocumentStore $documents) {}
+
     /**
-     * @param  array<mixed>  $sections
+     * @param  array<mixed>  $sections  a list of sections, or a page value of any format
      */
     public function save(SitePage $page, array $sections, ?Authenticatable $user): SitePage
     {
-        $clean = PageContent::normalize($sections);
-
-        return DB::transaction(function () use ($page, $clean, $user): SitePage {
-            $page->forceFill(['sections' => $clean])->save();
-
-            $latest = CmsRevision::query()->where('key', $page->revisionKey())->latest('id')->value('content');
-
-            if ($latest !== $clean) {
-                CmsRevision::query()->create([
-                    'key' => $page->revisionKey(),
-                    'content' => $clean,
-                    'user_id' => $user?->getAuthIdentifier(),
-                ]);
-
-                $keep = max(1, (int) config('filament-cms.revisions', 20));
-                $newest = CmsRevision::query()->where('key', $page->revisionKey())->latest('id')->limit($keep)->pluck('id');
-                CmsRevision::query()->where('key', $page->revisionKey())->whereNotIn('id', $newest)->delete();
-            }
-
-            return $page;
-        });
+        return $this->saved($page, $this->documents->save($page, $sections, $user));
     }
 
     public function restore(SitePage $page, CmsRevision $revision, ?Authenticatable $user): SitePage
     {
-        abort_unless($revision->key === $page->revisionKey(), 404);
+        return $this->saved($page, $this->documents->restore($page, $revision, $user));
+    }
 
-        return $this->save($page, $revision->content, $user);
+    /**
+     * @param  array{ok: bool, errors?: array<string, string>}  $result
+     */
+    private function saved(SitePage $page, array $result): SitePage
+    {
+        if (! $result['ok']) {
+            throw ValidationException::withMessages($result['errors'] ?? []);
+        }
+
+        return $page;
     }
 }
