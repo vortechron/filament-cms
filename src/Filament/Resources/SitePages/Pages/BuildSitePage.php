@@ -11,6 +11,7 @@ use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentBlockEditor\Filament\Concerns\InteractsWithPageBuilder;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Entries\EntryBuilder;
+use Vortechron\FilamentCms\Entries\EntryList;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
 use Vortechron\FilamentCms\Filament\Resources\SiteSections\SiteSectionResource;
@@ -115,6 +116,10 @@ class BuildSitePage extends Page
         // The block editor has no hook for one builder's own values yet.
         $options['dynamicValues'] = [...$options['dynamicValues'] ?? [], ...EntryBuilder::dynamicValues($this->record)];
 
+        if (! $this->plugin()->hasEntries()) {
+            $options['blocks'] = array_values(array_filter($options['blocks'] ?? [], fn (array $block): bool => $block['kind'] !== EntryList::KIND));
+        }
+
         return $options;
     }
 
@@ -162,7 +167,7 @@ class BuildSitePage extends Page
         $renderer = app(SitePageRenderer::class);
 
         if (EntryBuilder::type($this->record) !== null) {
-            return EntryBuilder::preview($this->record, $sections)?->render() ?? '';
+            return EntryBuilder::preview($this->record, $sections);
         }
 
         return ($this->record instanceof SitePage

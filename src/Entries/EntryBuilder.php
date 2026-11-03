@@ -3,7 +3,6 @@
 namespace Vortechron\FilamentCms\Entries;
 
 use Filament\Facades\Filament;
-use Illuminate\Contracts\View\View;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\Document;
@@ -77,16 +76,20 @@ final class EntryBuilder
      * or single drawn with the first entry's values.
      *
      * @param  list<array<string, mixed>>  $sections
+     * @return string a full HTML document
      */
-    public static function preview(Document $document, array $sections): ?View
+    public static function preview(Document $document, array $sections): string
     {
         $entry = self::previewEntry($document);
 
         if ($document->kind === Document::ENTRY) {
-            return $entry === null ? null : app(EntryPageRenderer::class)->view($entry, $sections, forBuilder: true);
+            return $entry === null ? '' : app(EntryPageRenderer::class)->view($entry, $sections, forBuilder: true)->render();
         }
 
-        return app(SitePageRenderer::class)->preview($document, $sections, $entry === null ? [] : EntryValues::of($entry));
+        $preview = fn (): string => app(SitePageRenderer::class)->preview($document, $sections, $entry === null ? [] : EntryValues::of($entry))->render();
+
+        // A card is drawn as a card: a list inside it shows its note only.
+        return $document->kind === Document::CARD ? EntryList::drawingCard($preview) : $preview();
     }
 
     /**

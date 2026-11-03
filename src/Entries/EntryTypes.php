@@ -3,12 +3,16 @@
 namespace Vortechron\FilamentCms\Entries;
 
 use InvalidArgumentException;
+use Vortechron\FilamentBlockEditor\Blocks\BlockRegistry;
 
 /**
  * The entry types of the site, by key. One instance serves the whole app
  * (a singleton). Register types in a service provider's boot():
  *
  *     app(EntryTypes::class)->register(EntryType::make('product')->path('/produk'));
+ *
+ * While at least one type is registered, the page builder offers the
+ * "cms-entries" list block (EntryList).
  */
 final class EntryTypes
 {
@@ -31,6 +35,7 @@ final class EntryTypes
         }
 
         $this->types[$type->key] = $type;
+        EntryList::register(app(BlockRegistry::class), $this);
 
         return $this;
     }
@@ -38,6 +43,7 @@ final class EntryTypes
     public function forget(string $key): self
     {
         unset($this->types[$key]);
+        EntryList::register(app(BlockRegistry::class), $this);
 
         return $this;
     }
