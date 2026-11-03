@@ -98,12 +98,35 @@ class FormSubmissionResource extends Resource
                 TextColumn::make('status')->label(__('filament-cms::forms.status'))->badge()->color(self::statusColor(...))->formatStateUsing(self::statusLabel(...)),
             ])
             ->filters([
-                SelectFilter::make('form_name')->label(__('filament-cms::forms.form'))->options(fn (): array => FormSubmission::query()
-                    ->whereNotNull('form_name')->distinct()->orderBy('form_name')->pluck('form_name', 'form_name')->all()),
+                SelectFilter::make('form_key')->label(__('filament-cms::forms.form'))->options(fn (): array => self::formOptions()),
                 SelectFilter::make('status')->label(__('filament-cms::forms.status'))->options(self::statusOptions()),
             ])
             ->recordActions([ViewAction::make(), self::markAction(FormSubmission::SPAM), self::markAction(FormSubmission::NEW), DeleteAction::make()])
             ->toolbarActions([BulkActionGroup::make([DeleteBulkAction::make()])]);
+    }
+
+    /**
+     * One option per stored form, by its key: two forms with the same name
+     * stay apart, and a form with no name can be picked. The label is its
+     * newest name and the pages it was sent from, newest first ("Borang
+     * pertanyaan · /hubungi"); a header form lists every page.
+     *
+     * @return array<string, string>
+     */
+    public static function formOptions(): array
+    {
+        $newest = FormSubmission::query()->selectRaw('max(id) as id')->groupBy('form_key', 'document_id')->pluck('id');
+
+        return FormSubmission::query()->whereKey($newest)->latest('id')->get()->groupBy('form_key')
+            ->map(function ($rows): array {
+                $pages = $rows->map(fn (FormSubmission $row): ?string => is_string($row->meta['page'] ?? null) ? $row->meta['page'] : null)->filter()->unique();
+                $list = $pages->take(3)->implode(', ').($pages->count() > 3 ? ', …' : '');
+
+                return ['name' => self::formName($rows->first()), 'pages' => $list !== '' ? $list : '—'];
+            })
+            ->sortBy([fn (array $a, array $b): int => strnatcasecmp($a['name'], $b['name']), fn (array $a, array $b): int => strnatcasecmp($a['pages'], $b['pages'])])
+            ->map(fn (array $form): string => "{$form['name']} · {$form['pages']}")
+            ->all();
     }
 
     /**

@@ -21,9 +21,9 @@ class FormSubmissionsScreenTest extends TestCase
     /**
      * @param  array<string, mixed>  $data
      */
-    private function submission(string $form, string $status = FormSubmission::NEW, array $data = ['nama' => 'Ali'], int $daysAgo = 0): FormSubmission
+    private function submission(?string $form, string $status = FormSubmission::NEW, array $data = ['nama' => 'Ali'], int $daysAgo = 0, string $key = 'sec00001.frm00001', string $page = '/hubungi', ?int $documentId = null): FormSubmission
     {
-        $submission = FormSubmission::query()->create(['form_key' => 'sec00001.frm00001', 'form_name' => $form, 'data' => $data, 'status' => $status, 'meta' => ['page' => '/hubungi']]);
+        $submission = FormSubmission::query()->create(['document_id' => $documentId, 'form_key' => $key, 'form_name' => $form, 'data' => $data, 'status' => $status, 'meta' => ['page' => $page]]);
         $submission->forceFill(['created_at' => now()->subDays($daysAgo)])->save();
 
         return $submission;
@@ -32,7 +32,7 @@ class FormSubmissionsScreenTest extends TestCase
     public function test_the_list_is_newest_first_and_filters_by_form_and_status(): void
     {
         $old = $this->submission('Borang pertanyaan', FormSubmission::READ, daysAgo: 2);
-        $order = $this->submission('Tempahan', daysAgo: 1);
+        $order = $this->submission('Tempahan', daysAgo: 1, key: 'sec00002.frm00002');
         $spam = $this->submission('Borang pertanyaan', FormSubmission::SPAM);
         $this->actingAsClient();
 
@@ -40,13 +40,41 @@ class FormSubmissionsScreenTest extends TestCase
 
         Livewire::test(ListFormSubmissions::class)
             ->assertCanSeeTableRecords([$spam, $order, $old], inOrder: true)
-            ->filterTable('form_name', 'Tempahan')
+            ->filterTable('form_key', 'sec00002.frm00002')
             ->assertCanSeeTableRecords([$order])
             ->assertCanNotSeeTableRecords([$old, $spam])
             ->resetTableFilters()
             ->filterTable('status', FormSubmission::SPAM)
             ->assertCanSeeTableRecords([$spam])
             ->assertCanNotSeeTableRecords([$old, $order]);
+    }
+
+    public function test_the_form_filter_tells_apart_forms_with_one_name_and_offers_unnamed_ones(): void
+    {
+        $contact = $this->submission('Borang pertanyaan', documentId: 1);
+        $about = $this->submission('Borang pertanyaan', key: 'sec00009.frm00009', page: '/tentang', documentId: 2);
+        $unnamed = $this->submission(null, key: 'frm00003', page: '/lain', documentId: 3);
+        $header = $this->submission('Langgan', key: 'hdr00001.frm00004', page: '/', documentId: 4);
+        $headerElsewhere = $this->submission('Langgan', key: 'hdr00001.frm00004', page: '/tentang', documentId: 2);
+        $this->submission('Langgan', key: 'hdr00001.frm00004', page: '/', documentId: 4);
+        $this->actingAsClient();
+
+        $component = Livewire::test(ListFormSubmissions::class);
+        $options = $component->instance()->getTable()->getFilter('form_key')->getOptions();
+
+        $this->assertSame([
+            'frm00003' => 'Borang · /lain',
+            'sec00001.frm00001' => 'Borang pertanyaan · /hubungi',
+            'sec00009.frm00009' => 'Borang pertanyaan · /tentang',
+            'hdr00001.frm00004' => 'Langgan · /, /tentang',
+        ], $options);
+
+        $component->filterTable('form_key', 'sec00009.frm00009')
+            ->assertCanSeeTableRecords([$about])
+            ->assertCanNotSeeTableRecords([$contact, $unnamed, $header, $headerElsewhere])
+            ->filterTable('form_key', 'frm00003')
+            ->assertCanSeeTableRecords([$unnamed])
+            ->assertCanNotSeeTableRecords([$contact, $about]);
     }
 
     public function test_the_menu_badge_counts_new_submissions(): void
