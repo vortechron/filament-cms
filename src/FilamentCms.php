@@ -8,6 +8,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
+use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
 use Vortechron\FilamentCms\Http\Controllers\ShowSitePage;
 use Vortechron\FilamentCms\Http\Controllers\SubmitForm;
 use Vortechron\FilamentCms\Http\Middleware\CmsMcpToken;
@@ -21,16 +22,26 @@ final class FilamentCms
     public const MCP_PER_MINUTE = 60;
 
     /**
+     * First parts of an address the site or the CMS itself answers, so the
+     * page route leaves them alone and no entry type may use them:
+     * Laravel's health check, Livewire, the panel, files and built assets,
+     * the MCP server, and the form route (`/_cms/forms/{document}`).
+     */
+    public const RESERVED_PATHS = ['up', 'livewire', 'admin', 'storage', 'filament', 'css', 'js', 'fonts', 'vendor', 'mcp', '_cms'];
+
+    /**
      * Shows site pages at their own addresses. Call it last in
      * routes/web.php: it answers every address no other route took.
      */
     public static function routes(): void
     {
         // A visitor sends a form block; the stored form decides what is kept.
-        Route::post('/_cms/forms/{document}', SubmitForm::class)->name('filament-cms.forms.submit');
+        Route::post('/_cms/forms/{document}', SubmitForm::class)->name(CmsFormEndpoint::ROUTE);
+
+        $reserved = implode('|', array_map(fn (string $path): string => preg_quote($path, '/'), self::RESERVED_PATHS));
 
         Route::get('/{path?}', ShowSitePage::class)
-            ->where('path', '(?!(?:up|livewire|admin|storage|filament|css|js|fonts|vendor|mcp)(?:/|$)).*')
+            ->where('path', "(?!(?:{$reserved})(?:/|$)).*")
             ->name('filament-cms.page');
     }
 

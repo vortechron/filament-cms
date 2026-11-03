@@ -33,6 +33,16 @@ class SitePageTest extends TestCase
         $this->get('/tiada')->assertNotFound();
     }
 
+    public function test_the_page_route_leaves_the_addresses_the_cms_itself_uses(): void
+    {
+        SitePage::query()->create(['title' => 'Borang', 'path' => '/cms/forms', 'is_published' => true, 'sections' => []]);
+        SitePage::query()->create(['title' => 'Mcp', 'path' => '/mcp/notes', 'is_published' => true, 'sections' => []]);
+
+        $this->get('/cms/forms')->assertOk();
+        $this->get('/_cms/forms')->assertNotFound();
+        $this->get('/mcp/notes')->assertNotFound();
+    }
+
     public function test_site_pages_are_only_the_documents_of_kind_page(): void
     {
         SitePage::query()->create(['title' => 'Utama', 'path' => '/', 'is_published' => true, 'sections' => []]);

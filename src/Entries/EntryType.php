@@ -6,6 +6,7 @@ use BackedEnum;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentCms\FilamentCms;
 use Vortechron\FilamentCms\Models\Document;
 
 /**
@@ -32,12 +33,6 @@ final class EntryType
      * Field names the entry itself uses (entry.title, entry.url, its slug).
      */
     public const RESERVED_FIELDS = ['title', 'url', 'slug'];
-
-    /**
-     * First parts of an address the site already uses. Keep in step with
-     * FilamentCms::routes().
-     */
-    public const RESERVED_PATHS = ['up', 'livewire', 'admin', 'storage', 'filament', 'css', 'js', 'fonts', 'vendor'];
 
     private string $label;
 
@@ -146,8 +141,8 @@ final class EntryType
         $clean = Document::cleanPath($path);
         $first = explode('/', $clean)[1];
 
-        if ($clean === '/' || in_array($first, self::RESERVED_PATHS, true)) {
-            throw new InvalidArgumentException('An entry type path cannot be the home page or start with '.implode(', ', self::RESERVED_PATHS).". Got [{$path}].");
+        if ($clean === '/' || in_array($first, FilamentCms::RESERVED_PATHS, true)) {
+            throw new InvalidArgumentException('An entry type path cannot be the home page or start with '.implode(', ', FilamentCms::RESERVED_PATHS).". Got [{$path}].");
         }
 
         $this->path = $clean;

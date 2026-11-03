@@ -93,6 +93,8 @@ class EntryTypesTest extends TestCase
             'up' => ['/up'],
             'filament' => ['/filament'],
             'vendor' => ['/vendor'],
+            'mcp' => ['/mcp'],
+            'inside mcp' => ['/mcp/produk'],
         ];
     }
 
