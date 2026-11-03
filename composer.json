@@ -20,7 +20,7 @@
         "php": "^8.3",
         "filament/filament": "^5.7",
         "spatie/laravel-package-tools": "^1.16",
-        "vortechron/filament-block-editor": "^1.0.1"
+        "vortechron/filament-block-editor": "^2.0"
     },
     "require-dev": {
         "laravel/pint": "^1.18",
@@ -62,6 +62,17 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "repositories": [
+        {
+            "name": "local-block-editor",
+            "type": "path",
+            "url": "/Users/amiruladli/Projects/filament-block-editor",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "vortechron/filament-block-editor": "2.0.0"
+                }
+            }
+        },
         {
             "name": "vortechron-block-editor",
             "type": "vcs",
