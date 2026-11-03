@@ -26,7 +26,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.2
+composer require vortechron/filament-cms:^0.3
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -42,6 +42,12 @@ $panel->plugin(
     FilamentCmsPlugin::make()->developers(fn (User $user): bool => $user->is_developer),
 );
 ```
+
+### Upgrading from 0.2
+
+0.3 needs block editor 2.0. `php artisan migrate` moves `cms_pages` into `cms_documents` (ids kept, each page
+rewritten as format 2) and adds `cms_form_submissions`. `SitePage` keeps its API. The page view now also gets
+`$header` and `$footer` (empty strings until they are built).
 
 ## Site pages built in the page builder
 

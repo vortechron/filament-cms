@@ -64,17 +64,6 @@
     "prefer-stable": true,
     "repositories": [
         {
-            "name": "local-block-editor",
-            "type": "path",
-            "url": "/Users/amiruladli/Projects/filament-block-editor",
-            "options": {
-                "symlink": true,
-                "versions": {
-                    "vortechron/filament-block-editor": "2.0.0"
-                }
-            }
-        },
-        {
             "name": "vortechron-block-editor",
             "type": "vcs",
             "url": "https://github.com/vortechron/filament-block-editor.git"
