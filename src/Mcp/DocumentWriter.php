@@ -88,19 +88,11 @@ final class DocumentWriter
             }
         }
 
-        if ($isPage && ! isset($errors['path']) && is_string($meta['path'] ?? null) && $this->pathTaken($document, Document::cleanPath($meta['path']))) {
+        if ($isPage && ! isset($errors['path']) && is_string($meta['path'] ?? null) && Document::pathTaken($meta['path'], $document)) {
             $errors['path'] = 'Another page or entry already has the path '.Document::cleanPath($meta['path']).'.';
         }
 
         return $errors;
-    }
-
-    private function pathTaken(Document $document, string $path): bool
-    {
-        return Document::query()
-            ->where('path', $path)
-            ->when($document->exists, fn ($query) => $query->whereKeyNot($document->getKey()))
-            ->exists();
     }
 
     /**

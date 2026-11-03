@@ -26,7 +26,7 @@ class SaveKit extends Tool
 
         $result = $writer->save($kit);
 
-        return $result['ok'] ? Reply::saved(['kit' => $result['kit']]) : Reply::refused($result['errors'] ?? []);
+        return Reply::fromResult($result);
     }
 
     public function schema(JsonSchema $schema): array

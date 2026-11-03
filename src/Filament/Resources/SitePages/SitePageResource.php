@@ -68,13 +68,7 @@ class SitePageResource extends Resource
                     ->maxLength(120)
                     ->dehydrateStateUsing(fn (?string $state): string => SitePage::cleanPath($state))
                     ->rule(fn (?SitePage $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
-                        // Pages and entries share one address column.
-                        $taken = Document::query()
-                            ->where('path', SitePage::cleanPath(is_string($value) ? $value : null))
-                            ->when($record, fn ($query) => $query->whereKeyNot($record->getKey()))
-                            ->exists();
-
-                        if ($taken) {
+                        if (Document::pathTaken(is_string($value) ? $value : '', $record)) {
                             $fail(__('filament-cms::pages.path_taken'));
                         }
                     }),

@@ -46,6 +46,14 @@ class SitePage extends Document
         return Attribute::make(set: fn (?string $value): string => self::cleanPath($value));
     }
 
+    /**
+     * The home page (path "/"), or null before it is made.
+     */
+    public static function home(): ?self
+    {
+        return static::query()->where('path', '/')->first();
+    }
+
     public function url(): string
     {
         return url($this->path);

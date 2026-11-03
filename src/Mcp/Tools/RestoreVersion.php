@@ -38,11 +38,7 @@ class RestoreVersion extends Tool
 
         $result = $store->restore($document, $version, McpActor::user(), developer: true);
 
-        if (! $result['ok']) {
-            return Reply::refused($result['errors'] ?? []);
-        }
-
-        return Reply::saved($document->kind === Document::PAGE ? ['url' => $document->url()] : []);
+        return Reply::fromResult($result, $document->kind === Document::PAGE ? ['url' => $document->url()] : []);
     }
 
     public function schema(JsonSchema $schema): array

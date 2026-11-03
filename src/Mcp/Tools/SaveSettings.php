@@ -22,7 +22,7 @@ class SaveSettings extends Tool
         $settings = Input::json($request->get('settings'));
         $result = $writer->save(is_array($settings) ? $settings : []);
 
-        return $result['ok'] ? Reply::saved(['sections' => $info->full()]) : Reply::refused($result['errors'] ?? []);
+        return Reply::fromResult($result, fn (): array => ['sections' => $info->full()]);
     }
 
     public function schema(JsonSchema $schema): array

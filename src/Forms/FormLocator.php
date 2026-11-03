@@ -7,6 +7,7 @@ use Vortechron\FilamentBlockEditor\BlockNote\Blocks;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
 use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentBlockEditor\Forms\FormDefinition;
+use Vortechron\FilamentCms\Entries\EntryTemplates;
 use Vortechron\FilamentCms\Models\Document;
 
 /**
@@ -89,7 +90,7 @@ final class FormLocator
             return null;
         }
 
-        return Document::query()->ofKind(Document::SINGLE)->where('entry_type', $document->entry_type)->oldest('id')->first();
+        return EntryTemplates::find($document->entry_type, Document::SINGLE);
     }
 
     /**

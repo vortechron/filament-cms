@@ -99,21 +99,10 @@ final class EntryStore
         $slug = trim(Str::limit(Str::slug($slug), self::MAX_SLUG, ''), '-') ?: $type->key;
         $path = "{$type->getPath()}/{$slug}";
 
-        for ($number = 2; $this->taken($path, $entry); $number++) {
+        for ($number = 2; Document::pathTaken($path, $entry); $number++) {
             $path = "{$type->getPath()}/{$slug}-{$number}";
         }
 
         return $path;
-    }
-
-    /**
-     * Any other document with this address: page and entry addresses share one column.
-     */
-    private function taken(string $path, Entry $entry): bool
-    {
-        return Document::query()
-            ->where('path', $path)
-            ->when($entry->exists, fn ($query) => $query->whereKeyNot($entry->getKey()))
-            ->exists();
     }
 }

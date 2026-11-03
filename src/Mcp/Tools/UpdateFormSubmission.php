@@ -35,7 +35,7 @@ class UpdateFormSubmission extends Tool
 
         $result = $submissions->update((int) $request->get('id'), (string) $request->get('status'));
 
-        return $result['ok'] ? Reply::saved() : Reply::refused($result['errors'] ?? []);
+        return Reply::fromResult($result);
     }
 
     public function schema(JsonSchema $schema): array

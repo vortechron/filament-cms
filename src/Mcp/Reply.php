@@ -2,6 +2,7 @@
 
 namespace Vortechron\FilamentCms\Mcp;
 
+use Closure;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 
@@ -11,7 +12,8 @@ use Laravel\Mcp\ResponseFactory;
  * - read(): what a read tool found;
  * - saved(): a write that went through, `{ok: true, errors: {}, ...}`;
  * - refused(): a write that changed nothing, `{ok: false, errors: {key: words}}`,
- *   marked as an error so the agent sees it.
+ *   marked as an error so the agent sees it;
+ * - fromResult(): one of those two for a store's `{ok, errors?, ...}`.
  */
 final class Reply
 {
@@ -41,6 +43,23 @@ final class Reply
 
         return Response::make(Response::error((string) json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)))
             ->withStructuredContent($payload);
+    }
+
+    /**
+     * saved() with what the result holds besides `ok` (then `$extra`), or
+     * refused() with its errors. A closure is read only when the write went
+     * through, so it can read the saved state.
+     *
+     * @param  array{ok: bool, errors?: array<string, string>}  $result
+     * @param  array<string, mixed>|Closure(): array<string, mixed>  $extra
+     */
+    public static function fromResult(array $result, array|Closure $extra = []): ResponseFactory
+    {
+        if (($result['ok'] ?? false) !== true) {
+            return self::refused($result['errors'] ?? []);
+        }
+
+        return self::saved([...array_diff_key($result, ['ok' => true, 'errors' => true]), ...($extra instanceof Closure ? $extra() : $extra)]);
     }
 
     /**

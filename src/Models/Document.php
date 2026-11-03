@@ -86,6 +86,19 @@ class Document extends Model
     }
 
     /**
+     * Whether another document already has this address. Pages and entries
+     * share the one unique `path` column, so any kind counts.
+     */
+    public static function pathTaken(string $path, ?self $except = null): bool
+    {
+        return static::query()
+            ->withoutGlobalScopes()
+            ->where('path', self::cleanPath($path))
+            ->when($except?->exists, fn (Builder $query) => $query->whereKeyNot($except->getKey()))
+            ->exists();
+    }
+
+    /**
      * A document without an address (a header, a synced section) keeps null.
      *
      * @return Attribute<string|null, string|null>

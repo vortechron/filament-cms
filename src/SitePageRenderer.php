@@ -54,7 +54,7 @@ final class SitePageRenderer
      */
     public function preview(Document $document, array $sections, array $values = []): View
     {
-        $home = SitePage::query()->where('path', '/')->first() ?? new SitePage(['title' => $document->title, 'path' => '/']);
+        $home = SitePage::home() ?? new SitePage(['title' => $document->title, 'path' => '/']);
         $values = [...self::pageValues($home), ...$values];
         $context = new RenderContext(forBuilder: true, isPreview: true, values: $values);
         $edited = '<div class="sf-page" data-preview>'.$this->pages->render($sections, $context).'</div>';
@@ -112,6 +112,17 @@ final class SitePageRenderer
             'page.url' => $page->url(),
             ...($page->exists ? [CmsFormEndpoint::VALUE => (string) $page->getKey()] : []),
         ];
+    }
+
+    /**
+     * The page.* values of the home page (an empty one before it is made):
+     * what a document with no page of its own (a section, a part) is drawn with.
+     *
+     * @return array<string, string|null>
+     */
+    public static function homeValues(): array
+    {
+        return self::pageValues(SitePage::home() ?? new SitePage(['title' => '', 'path' => '/']));
     }
 
     private static function wrap(string $part, string $html): string

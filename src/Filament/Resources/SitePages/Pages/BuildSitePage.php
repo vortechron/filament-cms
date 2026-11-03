@@ -219,9 +219,10 @@ class BuildSitePage extends Page
      */
     protected function getPageBuilderRenderValues(): array
     {
-        $page = $this->record instanceof SitePage ? $this->record : EntryBuilder::page($this->record) ?? SitePage::query()->where('path', '/')->first() ?? new SitePage(['title' => '', 'path' => '/']);
+        $page = $this->record instanceof SitePage ? $this->record : EntryBuilder::page($this->record);
+        $pageValues = $page === null ? SitePageRenderer::homeValues() : SitePageRenderer::pageValues($page);
 
-        return Arr::except([...SitePageRenderer::pageValues($page), ...EntryBuilder::entryValues($this->record)], CmsFormEndpoint::VALUE);
+        return Arr::except([...$pageValues, ...EntryBuilder::entryValues($this->record)], CmsFormEndpoint::VALUE);
     }
 
     protected function isPageBuilderDeveloper(): bool

@@ -49,9 +49,7 @@ class CreateDocument extends Tool
 
         $result = $writer->save($document, $value ?? ['version' => PageValue::VERSION, 'sections' => []], $meta);
 
-        return $result['ok']
-            ? Reply::saved(['id' => $document->getKey(), ...array_diff_key($result, ['ok' => true])])
-            : Reply::refused($result['errors'] ?? []);
+        return Reply::fromResult($result, fn (): array => ['id' => $document->getKey()]);
     }
 
     public function schema(JsonSchema $schema): array

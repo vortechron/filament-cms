@@ -48,7 +48,7 @@ class RenderDocument extends Tool
         return Response::text(self::cut(match (true) {
             $document->kind === Document::PAGE => $site->view(SitePage::query()->findOrFail($document->getKey()))->render(),
             $document->kind === Document::ENTRY => $entries->view(Entry::query()->findOrFail($document->getKey()))->render(),
-            in_array($document->kind, Document::PARTS, true) => $site->part($document->kind, self::homeValues()),
+            in_array($document->kind, Document::PARTS, true) => $site->part($document->kind, SitePageRenderer::homeValues()),
             default => self::sections($document, $pages),
         }));
     }
@@ -61,7 +61,7 @@ class RenderDocument extends Tool
     private static function sections(Document $document, PageRenderer $pages): string
     {
         $page = EntryBuilder::page($document);
-        $pageValues = $page === null ? self::homeValues() : SitePageRenderer::pageValues($page);
+        $pageValues = $page === null ? SitePageRenderer::homeValues() : SitePageRenderer::pageValues($page);
         $isCard = $document->kind === Document::CARD;
         $values = $isCard ? EntryList::cardValues($pageValues, EntryBuilder::entryValues($document)) : [...$pageValues, ...EntryBuilder::entryValues($document)];
         $draw = fn (): string => $pages->render($document->contentSections(), new RenderContext(values: $values));
@@ -81,14 +81,6 @@ class RenderDocument extends Tool
 
         return $document->is_published && ($document->kind === Document::PAGE
             || ($document->kind === Document::ENTRY && EntryBuilder::type($document)?->getPath() !== null));
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private static function homeValues(): array
-    {
-        return SitePageRenderer::pageValues(SitePage::query()->where('path', '/')->first() ?? new SitePage(['title' => '', 'path' => '/']));
     }
 
     private static function cut(string $html): string

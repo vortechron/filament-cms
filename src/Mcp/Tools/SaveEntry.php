@@ -47,7 +47,7 @@ class SaveEntry extends Tool
 
         $result = $entries->save($entry, McpActor::user());
 
-        return $result['ok'] ? Reply::saved(array_diff_key($result, ['ok' => true])) : Reply::refused($result['errors'] ?? []);
+        return Reply::fromResult($result);
     }
 
     public function schema(JsonSchema $schema): array

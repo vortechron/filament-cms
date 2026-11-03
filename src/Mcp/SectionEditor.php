@@ -68,11 +68,7 @@ final class SectionEditor
     {
         $result = $this->writer->save($document, ['version' => PageValue::VERSION, 'sections' => array_values($sections)], []);
 
-        if (! $result['ok']) {
-            return Reply::refused($result['errors'] ?? []);
-        }
-
-        return Reply::saved([...$extra, ...array_diff_key($result, ['ok' => true]), 'sections' => self::outline(self::stored($document))]);
+        return Reply::fromResult($result, fn (): array => [...$extra, 'sections' => self::outline(self::stored($document))]);
     }
 
     /**

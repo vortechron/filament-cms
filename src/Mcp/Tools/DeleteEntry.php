@@ -33,7 +33,7 @@ class DeleteEntry extends Tool
 
         $result = $entries->delete((int) $request->get('id'));
 
-        return $result['ok'] ? Reply::saved() : Reply::refused($result['errors'] ?? []);
+        return Reply::fromResult($result);
     }
 
     public function schema(JsonSchema $schema): array
