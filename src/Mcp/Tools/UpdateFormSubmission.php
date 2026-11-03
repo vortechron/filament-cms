@@ -10,7 +10,6 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Vortechron\FilamentCms\Mcp\Contracts\McpFormSubmissions;
-use Vortechron\FilamentCms\Mcp\Forms\NoFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Input;
 use Vortechron\FilamentCms\Mcp\Reply;
 
@@ -20,10 +19,6 @@ class UpdateFormSubmission extends Tool
 {
     public function handle(Request $request, McpFormSubmissions $submissions): ResponseFactory
     {
-        if (! $submissions->available()) {
-            return Reply::refuse('forms', NoFormSubmissions::MESSAGE);
-        }
-
         $errors = Input::errors($request->all(), [
             'id' => ['required', 'integer', 'min:1'],
             'status' => ['required', 'string', Rule::in(McpFormSubmissions::STATUSES)],

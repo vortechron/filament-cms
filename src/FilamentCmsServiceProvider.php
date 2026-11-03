@@ -17,7 +17,6 @@ use Vortechron\FilamentCms\Mcp\Contracts\McpFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Entries\NoEntries;
 use Vortechron\FilamentCms\Mcp\Entries\RegisteredEntries;
 use Vortechron\FilamentCms\Mcp\Forms\EloquentFormSubmissions;
-use Vortechron\FilamentCms\Mcp\Forms\NoFormSubmissions;
 
 class FilamentCmsServiceProvider extends PackageServiceProvider
 {
@@ -52,10 +51,8 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
             ? new NoEntries
             : $app->make(RegisteredEntries::class));
 
-        // Form submissions, once the forms' model exists.
-        $this->app->bind(McpFormSubmissions::class, fn (): McpFormSubmissions => class_exists(Models\FormSubmission::class)
-            ? new EloquentFormSubmissions(Models\FormSubmission::class)
-            : new NoFormSubmissions);
+        // What the MCP server reads and marks form submissions with.
+        $this->app->bind(McpFormSubmissions::class, EloquentFormSubmissions::class);
     }
 
     public function packageBooted(): void

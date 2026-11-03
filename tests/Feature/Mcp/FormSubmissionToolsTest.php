@@ -2,40 +2,22 @@
 
 namespace Vortechron\FilamentCms\Tests\Feature\Mcp;
 
-use Vortechron\FilamentCms\Mcp\Contracts\McpFormSubmissions;
-use Vortechron\FilamentCms\Mcp\Forms\EloquentFormSubmissions;
-use Vortechron\FilamentCms\Mcp\Forms\NoFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Tools\ListFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Tools\UpdateFormSubmission;
-use Vortechron\FilamentCms\Tests\Fixtures\FormSubmissionFixture;
+use Vortechron\FilamentCms\Models\FormSubmission;
 
 class FormSubmissionToolsTest extends McpTestCase
 {
-    private function useFixture(): void
+    private function submission(string $status = 'new', string $form = 'sec1.form1', array $data = ['nama' => 'Ali']): FormSubmission
     {
-        FormSubmissionFixture::createTable();
-        $this->app->instance(McpFormSubmissions::class, new EloquentFormSubmissions(FormSubmissionFixture::class));
-    }
-
-    private function submission(string $status = 'new', string $form = 'sec1.form1', array $data = ['nama' => 'Ali']): FormSubmissionFixture
-    {
-        return FormSubmissionFixture::query()->create([
+        return FormSubmission::query()->create([
             'document_id' => 1, 'form_key' => $form, 'form_name' => 'Pertanyaan', 'data' => $data, 'status' => $status,
             'meta' => ['page' => '/hubungi', 'ip_hash' => 'abc123', 'user_agent' => 'Safari'],
         ]);
     }
 
-    public function test_without_the_forms_track_the_tools_say_forms_are_not_set_up(): void
-    {
-        $this->app->instance(McpFormSubmissions::class, new NoFormSubmissions);
-
-        $this->assertRefused($this->runTool(ListFormSubmissions::class), 'forms');
-        $this->assertRefused($this->runTool(UpdateFormSubmission::class, ['id' => 1, 'status' => 'read']), 'forms');
-    }
-
     public function test_it_lists_submissions_newest_first_with_counts_and_filters(): void
     {
-        $this->useFixture();
         $first = $this->submission('read');
         $second = $this->submission('new', data: ['nama' => 'Siti']);
         $this->submission('spam', 'sec2.form9');
@@ -57,7 +39,6 @@ class FormSubmissionToolsTest extends McpTestCase
 
     public function test_it_changes_the_status_of_a_submission(): void
     {
-        $this->useFixture();
         $submission = $this->submission();
 
         $this->assertSaved($this->runTool(UpdateFormSubmission::class, ['id' => $submission->getKey(), 'status' => 'spam']));

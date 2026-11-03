@@ -11,7 +11,6 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Vortechron\FilamentCms\Mcp\Contracts\McpFormSubmissions;
-use Vortechron\FilamentCms\Mcp\Forms\NoFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Input;
 use Vortechron\FilamentCms\Mcp\Reply;
 
@@ -22,10 +21,6 @@ class ListFormSubmissions extends Tool
 {
     public function handle(Request $request, McpFormSubmissions $submissions): ResponseFactory
     {
-        if (! $submissions->available()) {
-            return Reply::refuse('forms', NoFormSubmissions::MESSAGE);
-        }
-
         $errors = Input::errors($request->all(), [
             'status' => ['nullable', 'string', Rule::in(McpFormSubmissions::STATUSES)],
             'form_key' => ['nullable', 'string', 'max:100'],

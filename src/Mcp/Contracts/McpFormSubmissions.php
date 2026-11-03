@@ -4,14 +4,11 @@ namespace Vortechron\FilamentCms\Mcp\Contracts;
 
 /**
  * What visitors sent through the site's forms, as the MCP server reads and
- * marks them. Bound to EloquentFormSubmissions when the forms track's
- * Models\FormSubmission exists, else to NoFormSubmissions.
+ * marks them. Bound to EloquentFormSubmissions (Models\FormSubmission).
  */
 interface McpFormSubmissions
 {
     public const STATUSES = ['new', 'read', 'spam'];
-
-    public function available(): bool;
 
     /**
      * Newest first. Filters, each optional: `status`, `form_key`,
