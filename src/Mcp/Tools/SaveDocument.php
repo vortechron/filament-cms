@@ -8,9 +8,9 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
+use Vortechron\FilamentCms\Mcp\Documents;
 use Vortechron\FilamentCms\Mcp\DocumentWriter;
 use Vortechron\FilamentCms\Mcp\Reply;
-use Vortechron\FilamentCms\Models\Document;
 
 #[Name('save_document')]
 #[Description('Saves a document\'s whole value (a page value of format 2: read page_format first) and, optionally, its title, path, published flag and SEO words. Everything is checked and cleaned like a save in the panel, kept as a version, and you save as a developer (locks and developer-only data are yours to change). A refused save changes nothing and answers the errors. For one section, prefer update_section. Not for the kit (save_kit) or entries (save_entry).')]
@@ -18,17 +18,10 @@ class SaveDocument extends Tool
 {
     public function handle(Request $request, DocumentWriter $writer): ResponseFactory
     {
-        $id = $request->get('id');
-        $document = is_int($id) || ctype_digit((string) $id) ? Document::query()->find((int) $id) : null;
+        $document = Documents::byId($request->get('id'), 'id', DocumentWriter::PAGE_KINDS);
 
-        if ($document === null) {
-            return Reply::refuse('id', 'There is no document with id '.json_encode($id).'.');
-        }
-
-        if (! in_array($document->kind, DocumentWriter::PAGE_KINDS, true)) {
-            return Reply::refuse('id', $document->kind === Document::KIT
-                ? "Document {$document->getKey()} is the design kit. Change it with save_kit."
-                : "Document {$document->getKey()} is an entry. Change it with save_entry.");
+        if ($document instanceof ResponseFactory) {
+            return $document;
         }
 
         $value = DocumentWriter::value($request->all());

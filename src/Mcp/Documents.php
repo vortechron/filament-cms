@@ -48,8 +48,16 @@ final class Documents
             return Reply::refuse($key, 'There is no document with id '.json_encode($id).'.');
         }
 
-        return in_array($document->kind, $kinds, true)
-            ? $document
-            : Reply::refuse($key, "Document {$document->getKey()} is of kind {$document->kind}, which this tool does not change.");
+        if (in_array($document->kind, $kinds, true)) {
+            return $document;
+        }
+
+        $hint = match ($document->kind) {
+            Document::KIT => ' It is the design kit: use get_kit and save_kit.',
+            Document::ENTRY => ' It is an entry: use the entry tools.',
+            default => '',
+        };
+
+        return Reply::refuse($key, "Document {$document->getKey()} is of kind {$document->kind}, which this tool does not change.{$hint}");
     }
 }

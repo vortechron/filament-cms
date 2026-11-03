@@ -10,6 +10,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 use Vortechron\FilamentCms\Mcp\DocumentInfo;
+use Vortechron\FilamentCms\Mcp\Documents;
 use Vortechron\FilamentCms\Mcp\Reply;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\SectionLibrary;
@@ -21,11 +22,10 @@ class DeleteDocument extends Tool
 {
     public function handle(Request $request, SectionLibrary $sections): ResponseFactory
     {
-        $id = $request->get('id');
-        $document = is_int($id) || ctype_digit((string) $id) ? Document::query()->find((int) $id) : null;
+        $document = Documents::byId($request->get('id'), 'id');
 
-        if ($document === null) {
-            return Reply::refuse('id', 'There is no document with id '.json_encode($id).'.');
+        if ($document instanceof ResponseFactory) {
+            return $document;
         }
 
         $refusal = self::refusal($document);

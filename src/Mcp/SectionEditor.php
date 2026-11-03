@@ -22,17 +22,7 @@ final class SectionEditor
      */
     public static function document(mixed $id): Document|ResponseFactory
     {
-        $document = is_int($id) || ctype_digit((string) $id) ? Document::query()->find((int) $id) : null;
-
-        if ($document === null) {
-            return Reply::refuse('document_id', 'There is no document with id '.json_encode($id).'.');
-        }
-
-        if (! in_array($document->kind, DocumentWriter::PAGE_KINDS, true)) {
-            return Reply::refuse('document_id', "Document {$document->getKey()} is of kind {$document->kind}, which has no sections to edit here.");
-        }
-
-        return $document;
+        return Documents::byId($id, 'document_id', DocumentWriter::PAGE_KINDS);
     }
 
     /**
