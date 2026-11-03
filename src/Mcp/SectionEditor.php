@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Mcp;
 use Closure;
 use Laravel\Mcp\ResponseFactory;
 use Vortechron\FilamentBlockEditor\BlockNote\BlockNoteDocument;
+use Vortechron\FilamentBlockEditor\Content\PageContent;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Entries\EntryBuilder;
@@ -83,7 +84,7 @@ final class SectionEditor
         return array_map(fn (array $section): array => [
             'id' => $section['id'],
             'type' => $section['type'],
-            ...($section['type'] === 'ref' ? ['ref' => $section['ref']] : [
+            ...($section['type'] === PageContent::REF ? ['ref' => $section['ref']] : [
                 'layout' => $section['data']['layout'] ?? null,
                 'text' => mb_strimwidth(str_replace("\n", ' ', BlockNoteDocument::text($section['data']['document'] ?? [])), 0, 80, '…'),
             ]),
