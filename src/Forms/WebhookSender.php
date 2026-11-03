@@ -2,6 +2,10 @@
 
 namespace Vortechron\FilamentCms\Forms;
 
+use Closure;
+use GuzzleHttp\Handler\CurlHandler;
+use GuzzleHttp\TransferStats;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -9,11 +13,18 @@ use Throwable;
 /**
  * POSTs a form's JSON to its webhook, only to the public internet:
  *
- * - `https` only, no redirects, 5 seconds at most;
- * - the host is looked up once (HostResolver) and every address must be
+ * - `https` only, no redirects, no proxy from the environment, 5 seconds
+ *   at most, always through curl (Guzzle's CurlHandler);
+ * - the host must be a plain ASCII name (no trailing dot, its last part a
+ *   word) or an IP address written in full;
+ * - the name is looked up once (HostResolver) and every address must be
  *   public (PublicAddress);
- * - the request is pinned to the checked address (CURLOPT_RESOLVE), so DNS
- *   cannot change between the check and the request.
+ * - curl connects to the checked address whatever host it reads from the
+ *   link (CURLOPT_CONNECT_TO with any host and port), so DNS cannot change
+ *   between the check and the request;
+ * - every address curl reports it connected to (CURLINFO_PRIMARY_IP, read
+ *   in `on_stats`) must be the checked one, and there must be one, or the
+ *   send counts as failed.
  *
  * Failures are logged with the host only, never the link (it may hold a
  * secret token), and never reach the visitor.
@@ -21,6 +32,12 @@ use Throwable;
 final class WebhookSender
 {
     public const TIMEOUT = 5;
+
+    /**
+     * A host name: ASCII labels, the last one starting with a letter, so a
+     * number such as 2130706433 or 127.1 is never read as an address.
+     */
+    private const NAME = '/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/';
 
     public function __construct(private readonly HostResolver $resolver) {}
 
@@ -37,14 +54,24 @@ final class WebhookSender
             return false;
         }
 
+        $connected = [];
+
         try {
-            $response = Http::timeout(self::TIMEOUT)
-                ->connectTimeout(self::TIMEOUT)
-                ->withOptions(['allow_redirects' => false, 'curl' => [CURLOPT_RESOLVE => [$target['pin']]]])
-                ->acceptJson()
-                ->post($url, $payload);
+            $response = $this->post($url, $payload, $target, function (TransferStats $stats) use (&$connected): void {
+                $ip = $stats->getHandlerStats()['primary_ip'] ?? null;
+
+                if (is_string($ip) && $ip !== '') {
+                    $connected[] = $ip;
+                }
+            });
         } catch (Throwable $exception) {
             Log::warning('Form webhook failed: no answer.', ['host' => $target['host'], 'error' => $exception::class]);
+
+            return false;
+        }
+
+        if (! self::onlyAt($connected, $target['ip'])) {
+            Log::warning('Form webhook failed: connected to another address.', ['host' => $target['host']]);
 
             return false;
         }
@@ -59,9 +86,31 @@ final class WebhookSender
     }
 
     /**
-     * The checked host and its pin, or why the address is refused.
+     * @param  array<string, mixed>  $payload
+     * @param  array{host: string, ip: string, port: int}  $target
+     * @param  Closure(TransferStats): void  $onStats
+     */
+    private function post(string $url, array $payload, array $target, Closure $onStats): Response
+    {
+        $address = str_contains($target['ip'], ':') ? "[{$target['ip']}]" : $target['ip'];
+
+        return Http::setHandler(new CurlHandler)
+            ->timeout(self::TIMEOUT)
+            ->connectTimeout(self::TIMEOUT)
+            ->withOptions([
+                'allow_redirects' => false,
+                'proxy' => '',
+                'curl' => [CURLOPT_CONNECT_TO => ["::{$address}:{$target['port']}"]],
+                'on_stats' => $onStats,
+            ])
+            ->acceptJson()
+            ->post($url, $payload);
+    }
+
+    /**
+     * The checked host, address and port, or why the link is refused.
      *
-     * @return array{host: string, pin: string}|string
+     * @return array{host: string, ip: string, port: int}|string
      */
     private function target(string $url): array|string
     {
@@ -75,8 +124,15 @@ final class WebhookSender
             return 'curl is needed to pin the address';
         }
 
-        $host = strtolower(trim($parts['host'] ?? '', '[]'));
-        $addresses = $host === '' ? [] : (filter_var($host, FILTER_VALIDATE_IP) !== false ? [$host] : $this->resolver->addresses($host));
+        $raw = strtolower($parts['host'] ?? '');
+        $literal = str_starts_with($raw, '[') && str_ends_with($raw, ']') ? substr($raw, 1, -1) : $raw;
+        $isAddress = filter_var($literal, FILTER_VALIDATE_IP) !== false && ($literal === $raw) === ! str_contains($literal, ':');
+
+        if (! $isAddress && preg_match(self::NAME, $raw) !== 1) {
+            return 'the host is not a plain name';
+        }
+
+        $addresses = $isAddress ? [$literal] : $this->resolver->addresses($raw);
 
         if ($addresses === []) {
             return 'the host has no address';
@@ -88,10 +144,23 @@ final class WebhookSender
             }
         }
 
-        $ip = $addresses[0];
-        $port = (int) ($parts['port'] ?? 443);
+        return ['host' => $raw, 'ip' => $addresses[0], 'port' => (int) ($parts['port'] ?? 443)];
+    }
 
-        return ['host' => $host, 'pin' => $host.':'.$port.':'.(str_contains($ip, ':') ? "[{$ip}]" : $ip)];
+    /**
+     * @param  list<string>  $connected
+     */
+    private static function onlyAt(array $connected, string $checked): bool
+    {
+        $checked = @inet_pton($checked);
+
+        foreach ($connected as $ip) {
+            if (@inet_pton($ip) !== $checked) {
+                return false;
+            }
+        }
+
+        return $connected !== [] && $checked !== false;
     }
 
     private static function host(string $url): ?string

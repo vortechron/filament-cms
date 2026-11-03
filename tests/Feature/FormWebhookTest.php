@@ -2,6 +2,7 @@
 
 namespace Vortechron\FilamentCms\Tests\Feature;
 
+use GuzzleHttp\TransferStats;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -27,6 +28,11 @@ class FormWebhookTest extends TestCase
      */
     private ?\Closure $answer = null;
 
+    /**
+     * The address curl reports it connected to (CURLINFO_PRIMARY_IP).
+     */
+    private ?string $connectedTo = '93.184.216.34';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -45,13 +51,15 @@ class FormWebhookTest extends TestCase
                     'nat64.example.com' => ['64:ff9b::7f00:1'],
                     'tailnet.example.com' => ['100.84.248.50'],
                     'multicast.example.com' => ['224.0.0.1'],
-                ][$host] ?? [];
+                ][$host] ?? ($host === 'nowhere.example.com' ? [] : ['93.184.216.34']);
             }
         });
 
         Http::preventStrayRequests();
         Http::fake(function (Request $request, array $options) {
             $this->sent[] = ['request' => $request, 'options' => $options];
+            $stats = $this->connectedTo === null ? [] : ['primary_ip' => $this->connectedTo];
+            $options['on_stats'](new TransferStats($request->toPsrRequest(), null, 0.1, null, $stats));
 
             return $this->answer === null ? Http::response(['ok' => true]) : ($this->answer)();
         });
@@ -73,14 +81,31 @@ class FormWebhookTest extends TestCase
         $this->assertSame(FormSubmission::query()->sole()->getKey(), $request['id']);
         $this->assertSame(5, $options['timeout']);
         $this->assertFalse($options['allow_redirects']);
-        $this->assertSame(['hooks.example.com:443:93.184.216.34'], $options['curl'][CURLOPT_RESOLVE]);
+        $this->assertSame('', $options['proxy']);
+        $this->assertSame(['::93.184.216.34:443'], $options['curl'][CURLOPT_CONNECT_TO]);
+        $this->assertArrayNotHasKey(CURLOPT_RESOLVE, $options['curl']);
     }
 
     public function test_an_ipv6_answer_and_another_port_are_pinned_too(): void
     {
+        $this->connectedTo = '2606:2800:0220:0001:0248:1893:25c8:1946';
+
         $this->assertTrue(app(WebhookSender::class)->send('https://v6.example.com:8443/hook', ['a' => 1]));
 
-        $this->assertSame(['v6.example.com:8443:[2606:2800:220:1:248:1893:25c8:1946]'], $this->sent[0]['options']['curl'][CURLOPT_RESOLVE]);
+        $this->assertSame(['::[2606:2800:220:1:248:1893:25c8:1946]:8443'], $this->sent[0]['options']['curl'][CURLOPT_CONNECT_TO]);
+    }
+
+    public function test_a_connection_to_another_address_than_the_checked_one_is_a_failure(): void
+    {
+        Log::spy();
+        $this->connectedTo = '127.0.0.1';
+
+        $this->assertFalse(app(WebhookSender::class)->send('https://hooks.example.com/x', []));
+
+        $this->connectedTo = null;
+        $this->assertFalse(app(WebhookSender::class)->send('https://hooks.example.com/x', []));
+
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $context): bool => str_contains($message, 'Form webhook failed: connected to another address') && $context['host'] === 'hooks.example.com')->twice();
     }
 
     /**
@@ -102,6 +127,12 @@ class FormWebhookTest extends TestCase
             'carrier-grade NAT (Tailscale)' => ['https://tailnet.example.com/x'],
             'multicast' => ['https://multicast.example.com/x'],
             'a name that does not resolve' => ['https://nowhere.example.com/x'],
+            'a trailing dot' => ['https://hooks.example.com./x'],
+            'a name with non-ASCII letters' => ["https://ho\u{043E}ks.example.com/x"],
+            'a name with a percent sign' => ['https://hooks.example.com%2F/x'],
+            'a number for an address' => ['https://2130706433/x'],
+            'a short address' => ['https://127.1/x'],
+            'a hex address' => ['https://0x7f.0.0.1/x'],
             'no host' => ['https:///x'],
             'not a url' => ['javascript:alert(1)'],
         ];
