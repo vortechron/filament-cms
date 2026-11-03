@@ -65,10 +65,10 @@ class BuildSitePage extends Page
             return Document::findOrCreatePart((string) $key);
         }
 
-        $document = SitePage::query()->find($key)
-            ?? Entry::query()->find($key)
-            ?? Document::query()->whereIn('kind', CmsKind::values(fn (CmsKind $kind): bool => $kind->builderKind() !== null))->whereKey($key)->firstOrFail();
+        $kind = CmsKind::tryFrom((string) Document::query()->whereKey($key)->value('kind'));
+        abort_if($kind?->builderKind() === null, 404);
 
+        $document = $kind->model()::query()->findOrFail($key);
         abort_unless(EntryBuilder::buildable($document), 404);
 
         return $document;
@@ -183,7 +183,7 @@ class BuildSitePage extends Page
 
     protected function getPageBuilderViewUrl(): ?string
     {
-        return ($this->record instanceof SitePage || $this->record instanceof Entry) && $this->record->is_published ? $this->record->url() : null;
+        return $this->record->cmsKind()?->isRoutable() === true && $this->record->is_published ? $this->record->url() : null;
     }
 
     /**

@@ -4,6 +4,10 @@ namespace Vortechron\FilamentCms\Documents;
 
 use Closure;
 use Vortechron\FilamentBlockEditor\Enums\DocumentKind;
+use Vortechron\FilamentCms\Entries\EntryContent;
+use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\Models\Entry;
+use Vortechron\FilamentCms\Models\SitePage;
 
 /**
  * The kinds of document the CMS stores (`cms_documents.kind`), and what
@@ -200,6 +204,32 @@ enum CmsKind: string
         return match ($this) {
             self::Page, self::Section, self::Template, self::Card, self::Single => true,
             self::Header, self::Footer, self::Kit, self::Entry => false,
+        };
+    }
+
+    /**
+     * The model class a document of this kind is loaded as.
+     *
+     * @return class-string<Document>
+     */
+    public function model(): string
+    {
+        return match ($this) {
+            self::Page => SitePage::class,
+            self::Entry => Entry::class,
+            self::Header, self::Footer, self::Section, self::Template, self::Kit, self::Card, self::Single => Document::class,
+        };
+    }
+
+    /**
+     * How DocumentStore checks and cleans its content.
+     */
+    public function content(): ContentHandler
+    {
+        return match ($this) {
+            self::Kit => app(KitContent::class),
+            self::Entry => app(EntryContent::class),
+            self::Page, self::Header, self::Footer, self::Section, self::Template, self::Card, self::Single => app(PageValueContent::class),
         };
     }
 

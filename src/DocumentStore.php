@@ -5,20 +5,19 @@ namespace Vortechron\FilamentCms;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Vortechron\FilamentBlockEditor\Content\PageContent;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
-use Vortechron\FilamentBlockEditor\Design\Kit;
-use Vortechron\FilamentCms\Entries\EntryContent;
+use Vortechron\FilamentCms\Documents\ContentHandler;
+use Vortechron\FilamentCms\Documents\PageValueContent;
 use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Document;
 
 /**
  * The one save path for documents: the page builder, the Filament screens,
- * and later the API and MCP all save here. Each save is checked, upgraded to
- * format 2 and cleaned; when the person saving is not a developer, the
- * stored locks and developer-only data are put back (PageValue::guard());
- * then it is saved with the newest versions kept, in one transaction.
+ * EntryStore and the MCP server all save here. Each kind's content handler
+ * (CmsKind::content(): a page value, the kit, or an entry's fields and
+ * sections) merges what is sent with what it keeps, checks it, and cleans
+ * it; when the person saving is not a developer, the stored locks and
+ * developer-only data are put back (PageValue::guard()). Then it is saved
+ * with the newest versions kept, in one transaction.
  *
  *     app(DocumentStore::class)->save($page, $value, $user);   // ['ok' => true] or ['ok' => false, 'errors' => [...]]
  */
@@ -31,13 +30,9 @@ final class DocumentStore
      */
     public function save(Document $document, array $value, ?Authenticatable $user, ?bool $developer = null): array
     {
-        $isEntry = $document->kind === Document::ENTRY;
-        $value = $isEntry ? EntryContent::merge($document, $value) : $value;
-        $errors = match (true) {
-            $document->kind === Document::KIT => $this->kitErrors($value),
-            $isEntry => EntryContent::errors($document, $value) ?: $this->pageErrors($document, $value),
-            default => $this->pageErrors($document, $value),
-        };
+        $content = self::content($document);
+        $value = $content->merge($document, $value);
+        $errors = $content->errors($document, $value);
 
         if ($errors !== []) {
             return ['ok' => false, 'errors' => $errors];
@@ -45,16 +40,8 @@ final class DocumentStore
 
         $developer ??= self::isDeveloper($user);
 
-        DB::transaction(function () use ($document, $value, $user, $developer, $isEntry): void {
-            $clean = $document->kind === Document::KIT ? Kit::normalize($value) : PageValue::normalize($value);
-
-            if ($document->kind !== Document::KIT && ! $developer) {
-                $clean = PageValue::guard($clean, PageValue::normalize($this->storedContent($document)));
-            }
-
-            if ($isEntry) {
-                $clean = EntryContent::clean($document, $value, $clean);
-            }
+        DB::transaction(function () use ($document, $content, $value, $user, $developer): void {
+            $clean = $content->clean($document, $value, fn (): array => $this->storedContent($document), $developer);
 
             $document->forceFill(['content' => $clean])->save();
             $this->keepVersion($document->revisionKey(), $clean, $user);
@@ -64,9 +51,9 @@ final class DocumentStore
     }
 
     /**
-     * Makes an older version the current one. An entry gets the version's
-     * sections back and keeps its stored fields. The restore is itself saved
-     * as a new version, so it can be undone too.
+     * Makes an older version the current one (an entry gets the version's
+     * sections back and keeps its stored fields). The restore is itself
+     * saved as a new version, so it can be undone too.
      *
      * @return array{ok: bool, errors?: array<string, string>}
      */
@@ -74,9 +61,7 @@ final class DocumentStore
     {
         abort_unless($revision->key === $document->revisionKey(), 404);
 
-        $content = is_array($revision->content) ? $revision->content : [];
-
-        return $this->save($document, $document->kind === Document::ENTRY ? ['sections' => Document::sectionsOf($content)] : $content, $user, $developer);
+        return $this->save($document, self::content($document)->restored(is_array($revision->content) ? $revision->content : []), $user, $developer);
     }
 
     /**
@@ -97,56 +82,11 @@ final class DocumentStore
     }
 
     /**
-     * @param  array<mixed>  $value
-     * @return array<string, string>
+     * A document of a kind this version does not know is saved as a page value.
      */
-    private function pageErrors(Document $document, array $value): array
+    private static function content(Document $document): ContentHandler
     {
-        $upgraded = PageValue::upgrade($value);
-        $errors = self::errors(['value' => $upgraded], PageValue::rules('value'), 'value');
-
-        if ($errors === [] && $document->cmsKind()?->holdsOneSection() === true) {
-            $sections = $upgraded['sections'];
-
-            if (count($sections) > 1 || (isset($sections[0]) && ($sections[0]['type'] ?? null) !== PageContent::TYPE)) {
-                $errors['sections'] = __('filament-cms::documents.one_section');
-            }
-        }
-
-        return $errors;
-    }
-
-    /**
-     * @param  array<mixed>  $value
-     * @return array<string, string>
-     */
-    private function kitErrors(array $value): array
-    {
-        return self::errors(['kit' => $value], Kit::rules('kit'), 'kit');
-    }
-
-    /**
-     * The first message of each failing rule, keyed without the outer name.
-     *
-     * @param  array<string, mixed>  $data
-     * @param  array<string, mixed>  $rules
-     * @return array<string, string>
-     */
-    private static function errors(array $data, array $rules, string $prefix): array
-    {
-        $validator = Validator::make($data, $rules);
-
-        if (! $validator->fails()) {
-            return [];
-        }
-
-        $errors = [];
-
-        foreach ($validator->errors()->messages() as $key => $messages) {
-            $errors[$key === $prefix ? $key : substr($key, strlen($prefix) + 1)] = (string) ($messages[0] ?? '');
-        }
-
-        return $errors;
+        return $document->cmsKind()?->content() ?? app(PageValueContent::class);
     }
 
     /**
