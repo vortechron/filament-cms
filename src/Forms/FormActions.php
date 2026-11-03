@@ -11,15 +11,19 @@ use Vortechron\FilamentCms\Mail\FormSubmissionMail;
 use Vortechron\FilamentCms\Models\FormSubmission;
 
 /**
- * Runs a saved submission's stored actions: the email to the shop, then
- * where the visitor goes (VisitorRedirect). A failing action is logged and
+ * Runs a saved submission's stored actions: the email to the shop, the
+ * webhook (WebhookSender), then where the visitor goes (VisitorRedirect). A failing action is logged and
  * never loses the submission.
  */
 final class FormActions
 {
     private const QUIET_MAILERS = ['log', 'array'];
 
-    public function __construct(private readonly DynamicValues $values, private readonly VisitorRedirect $visitor) {}
+    public function __construct(
+        private readonly DynamicValues $values,
+        private readonly VisitorRedirect $visitor,
+        private readonly WebhookSender $webhooks,
+    ) {}
 
     /**
      * @return string|null where to send the visitor, or null for back to the form
@@ -30,6 +34,18 @@ final class FormActions
 
         if ($email !== null) {
             $this->attempt('email', $submission, fn () => $this->email($submission, $found, $email, $context));
+        }
+
+        $webhook = $found->form->action('webhook');
+
+        if (($webhook['url'] ?? '') !== '') {
+            $this->attempt('webhook', $submission, fn (): bool => $this->webhooks->send($webhook['url'], [
+                'id' => $submission->getKey(),
+                'form' => $submission->form_name,
+                'page' => $submission->meta['page'] ?? null,
+                'data' => $submission->data,
+                'sent_at' => $submission->created_at?->toIso8601String(),
+            ]));
         }
 
         return $this->attempt('redirect', $submission, fn (): ?string => $this->visitor->url($submission, $found, $context));

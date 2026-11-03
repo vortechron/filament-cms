@@ -9,6 +9,8 @@ use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentBlockEditor\Forms\FormEndpoint;
 use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
+use Vortechron\FilamentCms\Forms\DnsHostResolver;
+use Vortechron\FilamentCms\Forms\HostResolver;
 
 class FilamentCmsServiceProvider extends PackageServiceProvider
 {
@@ -35,6 +37,7 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
 
         // Form blocks post to the page they are on (Forms\FormSubmissionHandler).
         $this->app->bind(FormEndpoint::class, CmsFormEndpoint::class);
+        $this->app->bindIf(HostResolver::class, DnsHostResolver::class);
     }
 
     public function packageBooted(): void
