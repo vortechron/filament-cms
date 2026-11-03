@@ -99,6 +99,21 @@ class FormLookupTest extends TestCase
         $this->assertSame(['sec00001.frm00001', 'frm00001'], FormSubmission::query()->oldest('id')->pluck('form_key')->all());
     }
 
+    public function test_a_form_in_the_entry_page_template_is_found_for_a_published_entry(): void
+    {
+        Document::query()->create(['kind' => Document::SINGLE, 'entry_type' => 'product', 'title' => 'Halaman produk', 'content' => ['version' => 2, 'sections' => [self::formSection('sgl00001', 'frmsgl01', [...self::exampleForm(), 'name' => 'Tanya produk'])]]]);
+        Document::query()->create(['kind' => Document::SINGLE, 'entry_type' => 'service', 'title' => 'Halaman servis', 'content' => ['version' => 2, 'sections' => [self::formSection('sgl00002', 'frmsgl02')]]]);
+        $entry = Document::query()->create(['kind' => Document::ENTRY, 'entry_type' => 'product', 'title' => 'Kopi', 'path' => '/produk/kopi', 'is_published' => true, 'content' => ['version' => 2, 'fields' => [], 'sections' => []]]);
+        $draft = Document::query()->create(['kind' => Document::ENTRY, 'entry_type' => 'product', 'title' => 'Teh', 'path' => '/produk/teh', 'is_published' => false, 'content' => ['version' => 2, 'fields' => [], 'sections' => []]]);
+
+        $this->send($entry, key: 'sgl00001.frmsgl01')->assertRedirect(url('/produk/kopi').'#form-frmsgl01');
+        $this->send($entry, key: 'sgl00002.frmsgl02')->assertNotFound();
+        $this->send($draft, key: 'sgl00001.frmsgl01')->assertNotFound();
+
+        $submission = FormSubmission::query()->sole();
+        $this->assertSame([$entry->getKey(), 'Tanya produk', '/produk/kopi'], [$submission->document_id, $submission->form_name, $submission->meta['page']]);
+    }
+
     public function test_a_form_inside_a_column_is_found(): void
     {
         $form = ['id' => 'frmcol01', ...Blocks::form(self::exampleForm())];

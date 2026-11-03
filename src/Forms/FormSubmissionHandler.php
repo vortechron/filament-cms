@@ -18,8 +18,16 @@ use Vortechron\FilamentCms\SitePageRenderer;
 
 /**
  * Handles a visitor sending a form block (POST /_cms/forms/{document}):
- * finds the stored form, checks the input with the stored fields, saves
- * it, then sends the visitor back to the form with its success message.
+ *
+ * 1. finds the stored form by `_form` (FormLocator), or 404;
+ * 2. quietly refuses a bot (honeypot filled, `_t` forged or younger than
+ *    MIN_SECONDS), and gives "try again" after PER_MINUTE sends a minute
+ *    from one address to one form (every send counts, good or not);
+ * 3. checks the input with the stored fields; errors go back under
+ *    `form.{blockId}.{name}`, with this form's values as old input;
+ * 4. saves the stored fields only, with a keyed hash of the IP, never the IP;
+ * 5. runs the actions (FormActions), then sends the visitor on, or back to
+ *    `#form-{blockId}` with the success flash.
  */
 final class FormSubmissionHandler
 {

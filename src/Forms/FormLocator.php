@@ -14,8 +14,9 @@ use Vortechron\FilamentCms\Models\Document;
  * Finds the stored form block a visitor sent, by its `_form` key
  * (`{sectionId}.{blockId}`, or `{blockId}` for a form drawn outside a
  * section). Only sections visitors see count, in this order: the
- * document's own sections, then the header's and the footer's, then the
- * synced sections any of them shows. The form always comes from storage,
+ * document's own sections, an entry's page template (its type's `single`
+ * document), the header's and the footer's, then the synced sections any
+ * of them shows. The form always comes from storage,
  * never from the request.
  */
 final class FormLocator
@@ -62,6 +63,7 @@ final class FormLocator
     {
         $shown = [
             ...self::sectionsOf($document, $shownOnly),
+            ...self::sectionsOf(self::entryTemplate($document), $shownOnly),
             ...self::sectionsOf(Document::firstOfKind(Document::HEADER), $shownOnly),
             ...self::sectionsOf(Document::firstOfKind(Document::FOOTER), $shownOnly),
         ];
@@ -77,6 +79,18 @@ final class FormLocator
         }
 
         return [...array_values($rich), ...$synced];
+    }
+
+    /**
+     * An entry's page is drawn with its type's `single` document first.
+     */
+    private static function entryTemplate(Document $document): ?Document
+    {
+        if ($document->kind !== Document::ENTRY || $document->entry_type === null) {
+            return null;
+        }
+
+        return Document::query()->ofKind(Document::SINGLE)->where('entry_type', $document->entry_type)->oldest('id')->first();
     }
 
     /**
