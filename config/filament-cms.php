@@ -18,7 +18,8 @@ return [
 
     /*
     | The project's Blade view that draws a site page. It gets $page, $content
-    | (the sections as HTML), $sections, $context and $isBuilderPreview.
+    | (the sections as HTML), $sections, $context, $isBuilderPreview, and
+    | $header and $footer (their HTML, or '' when there is none).
     */
     'page_view' => 'cms.page',
 
