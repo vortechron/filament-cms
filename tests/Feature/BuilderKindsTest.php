@@ -9,6 +9,7 @@ use Vortechron\FilamentBlockEditor\BlockNote\Blocks;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
+use Vortechron\FilamentCms\Filament\Resources\SiteSections\SiteSectionResource;
 use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
@@ -94,6 +95,10 @@ class BuilderKindsTest extends TestCase
         $this->assertSame(SitePageResource::getUrl(), $page['backUrl']);
 
         $this->assertArrayNotHasKey('viewUrl', $this->builderOptions($draft));
+
+        $synced = $this->builderOptions($this->document(Document::SECTION, 'Promosi'));
+        $this->assertSame('Promosi', $synced['title']);
+        $this->assertSame(SiteSectionResource::getUrl(), $synced['backUrl']);
 
         $part = $this->builderOptions($header);
         $this->assertSame('Header', $part['title']);

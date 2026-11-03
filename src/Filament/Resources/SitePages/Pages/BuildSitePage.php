@@ -11,6 +11,7 @@ use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentBlockEditor\Filament\Concerns\InteractsWithPageBuilder;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
+use Vortechron\FilamentCms\Filament\Resources\SiteSections\SiteSectionResource;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
@@ -151,7 +152,9 @@ class BuildSitePage extends Page
 
     protected function getPageBuilderBackUrl(): ?string
     {
-        return SitePageResource::getUrl();
+        return $this->record->kind === Document::SECTION && $this->plugin()->hasSections()
+            ? SiteSectionResource::getUrl()
+            : SitePageResource::getUrl();
     }
 
     protected function getPageBuilderViewUrl(): ?string
