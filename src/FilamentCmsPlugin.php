@@ -23,6 +23,10 @@ class FilamentCmsPlugin implements Plugin
 
     protected bool $hasSitePages = true;
 
+    protected bool $hasParts = true;
+
+    protected bool $hasSections = true;
+
     public static function make(): static
     {
         return app(static::class);
@@ -40,7 +44,9 @@ class FilamentCmsPlugin implements Plugin
     }
 
     /**
-     * Who counts as a developer. Only developers may restore old versions.
+     * Who counts as a developer. Only developers may restore old versions,
+     * set locks and custom CSS in the page builder, and change what is
+     * locked.
      */
     public function developers(Closure $callback): static
     {
@@ -58,6 +64,38 @@ class FilamentCmsPlugin implements Plugin
         $this->hasSitePages = $condition;
 
         return $this;
+    }
+
+    /**
+     * The header and footer: built like a page, drawn around every page. On
+     * by default.
+     */
+    public function parts(bool $condition = true): static
+    {
+        $this->hasParts = $condition;
+
+        return $this;
+    }
+
+    public function hasParts(): bool
+    {
+        return $this->hasParts;
+    }
+
+    /**
+     * Synced and saved sections, and the Seksyen screen that lists them. On
+     * by default.
+     */
+    public function sections(bool $condition = true): static
+    {
+        $this->hasSections = $condition;
+
+        return $this;
+    }
+
+    public function hasSections(): bool
+    {
+        return $this->hasSections;
     }
 
     public function isDeveloper(?Authenticatable $user): bool
