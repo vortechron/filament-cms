@@ -34,8 +34,15 @@ class ListEntries extends Tool
             return Reply::refused($errors);
         }
 
+        $types = $entries->types();
+        $keys = array_column($types, 'key');
+
+        if ($request->get('type') !== null && ! in_array($request->get('type'), $keys, true)) {
+            return Reply::refuse('type', 'There is no entry type '.json_encode($request->get('type')).'. Types: '.implode(', ', $keys).'.');
+        }
+
         return Reply::read([
-            'types' => $entries->types(),
+            'types' => $types,
             'entries' => $entries->list($request->get('type'), (int) ($request->get('limit') ?? 50)),
         ]);
     }

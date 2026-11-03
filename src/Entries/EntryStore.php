@@ -17,6 +17,7 @@ use Vortechron\FilamentCms\Models\Entry;
  *         'title' => 'Kopi Kampung',
  *         'slug' => null,              // optional; empty: made from the title
  *         'is_published' => true,      // optional
+ *         'sort' => 3,                 // optional; a new entry without one goes last
  *         'fields' => ['price' => 'RM 12'],   // optional; the stored fields stay when left out
  *         'sections' => [...],         // optional, for a type with a body
  *     ], $user);
@@ -59,7 +60,9 @@ final class EntryStore
             $entry->is_published = (bool) $data['is_published'];
         }
 
-        if (! $entry->exists) {
+        if (array_key_exists('sort', $data)) {
+            $entry->sort = (int) $data['sort'];
+        } elseif (! $entry->exists) {
             $entry->sort = (int) Entry::query()->ofType($type->key)->max('sort') + 1;
         }
 
@@ -76,6 +79,7 @@ final class EntryStore
             'title' => ['required', 'string', 'max:120'],
             'slug' => ['nullable', 'string', 'max:120'],
             'is_published' => ['sometimes', 'boolean'],
+            'sort' => ['sometimes', 'integer', 'min:0'],
         ], attributes: ['title' => __('filament-cms::entries.title')]);
 
         return array_map(fn (array $messages): string => (string) ($messages[0] ?? ''), $validator->errors()->messages());

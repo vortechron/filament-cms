@@ -15,6 +15,7 @@ use Vortechron\FilamentCms\Forms\HostResolver;
 use Vortechron\FilamentCms\Mcp\Contracts\McpEntries;
 use Vortechron\FilamentCms\Mcp\Contracts\McpFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Entries\NoEntries;
+use Vortechron\FilamentCms\Mcp\Entries\RegisteredEntries;
 use Vortechron\FilamentCms\Mcp\Forms\EloquentFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Forms\NoFormSubmissions;
 
@@ -47,7 +48,9 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
         $this->app->bindIf(HostResolver::class, DnsHostResolver::class);
 
         // What the MCP server reads and writes entries with; none until entry types exist.
-        $this->app->bind(McpEntries::class, NoEntries::class);
+        $this->app->bind(McpEntries::class, fn ($app): McpEntries => $app->make(EntryTypes::class)->all() === []
+            ? new NoEntries
+            : $app->make(RegisteredEntries::class));
 
         // Form submissions, once the forms' model exists.
         $this->app->bind(McpFormSubmissions::class, fn (): McpFormSubmissions => class_exists(Models\FormSubmission::class)

@@ -6,10 +6,10 @@ use Illuminate\Contracts\Auth\Authenticatable;
 
 /**
  * Entries (documents of kind "entry", one entry type each) as the MCP
- * server reads and writes them. The CMS binds NoEntries until entry types
- * exist; the entries track binds one that uses its entry types and saves
- * through its store (fields cleaned by the type's fields, sections through
- * DocumentStore as a developer, a version kept).
+ * server reads and writes them. The CMS binds Entries\RegisteredEntries
+ * while entry types are registered (it saves through EntryStore: fields
+ * cleaned by the type's fields, sections through DocumentStore as a
+ * developer, a version kept), and Entries\NoEntries when there are none.
  */
 interface McpEntries
 {
