@@ -8,7 +8,10 @@ use Vortechron\FilamentBlockEditor\Content\DynamicValues;
 use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentCms\Mcp\Contracts\McpEntries;
+use Vortechron\FilamentCms\Mcp\Contracts\McpFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Entries\NoEntries;
+use Vortechron\FilamentCms\Mcp\Forms\EloquentFormSubmissions;
+use Vortechron\FilamentCms\Mcp\Forms\NoFormSubmissions;
 
 class FilamentCmsServiceProvider extends PackageServiceProvider
 {
@@ -34,6 +37,11 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
 
         // What the MCP server reads and writes entries with; none until entry types exist.
         $this->app->bind(McpEntries::class, NoEntries::class);
+
+        // Form submissions, once the forms' model exists.
+        $this->app->bind(McpFormSubmissions::class, fn (): McpFormSubmissions => class_exists(Models\FormSubmission::class)
+            ? new EloquentFormSubmissions(Models\FormSubmission::class)
+            : new NoFormSubmissions);
     }
 
     public function packageBooted(): void

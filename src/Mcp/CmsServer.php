@@ -14,6 +14,7 @@ use Vortechron\FilamentCms\Mcp\Tools\GetSettings;
 use Vortechron\FilamentCms\Mcp\Tools\InsertSection;
 use Vortechron\FilamentCms\Mcp\Tools\ListDocuments;
 use Vortechron\FilamentCms\Mcp\Tools\ListEntries;
+use Vortechron\FilamentCms\Mcp\Tools\ListFormSubmissions;
 use Vortechron\FilamentCms\Mcp\Tools\ListVersions;
 use Vortechron\FilamentCms\Mcp\Tools\MoveSection;
 use Vortechron\FilamentCms\Mcp\Tools\PageFormat;
@@ -25,6 +26,7 @@ use Vortechron\FilamentCms\Mcp\Tools\SaveEntry;
 use Vortechron\FilamentCms\Mcp\Tools\SaveKit;
 use Vortechron\FilamentCms\Mcp\Tools\SaveSettings;
 use Vortechron\FilamentCms\Mcp\Tools\SiteOverview;
+use Vortechron\FilamentCms\Mcp\Tools\UpdateFormSubmission;
 use Vortechron\FilamentCms\Mcp\Tools\UpdateSection;
 
 /**
@@ -62,6 +64,8 @@ class CmsServer extends Server
         ListEntries::class,
         SaveEntry::class,
         DeleteEntry::class,
+        ListFormSubmissions::class,
+        UpdateFormSubmission::class,
         ListVersions::class,
         RestoreVersion::class,
         RenderDocument::class,
