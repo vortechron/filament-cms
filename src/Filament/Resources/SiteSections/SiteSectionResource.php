@@ -21,8 +21,7 @@ use Vortechron\FilamentCms\SectionLibrary;
 /**
  * The "Seksyen" screen: synced sections (one section many pages show) and
  * saved sections (templates in the builder's add panel). Both are made in
- * the page builder; here they are renamed, deleted, or built ("Bina", for
- * synced ones). The same people who may edit pages may open it.
+ * the page builder; here they are renamed, deleted, or built ("Bina"). The same people who may edit pages may open it.
  */
 class SiteSectionResource extends Resource
 {
@@ -85,7 +84,6 @@ class SiteSectionResource extends Resource
                     ->label(__('filament-cms::pages.build'))
                     ->icon(Heroicon::OutlinedPaintBrush)
                     ->button()
-                    ->visible(fn (Document $record): bool => $record->kind === Document::SECTION)
                     ->url(fn (Document $record): string => BuildSitePage::getUrl(['record' => $record])),
                 EditAction::make()->label(__('filament-cms::sections.rename')),
                 DeleteAction::make()->modalDescription(fn (Document $record): string => self::deleteWarning($record)),

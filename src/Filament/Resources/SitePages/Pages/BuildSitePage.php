@@ -27,7 +27,8 @@ use Vortechron\FilamentCms\SitePageRenderer;
 
 /**
  * The page builder, full screen, for one document: a page, the header or
- * footer, a synced section, or an entry type's card or single page.
+ * footer, a synced or saved section, an entry's body, or an entry type's
+ * card or single page.
  * /admin/site-pages/{id}/build; "header" and "footer" in place of the id
  * open the header and footer, made on first use.
  *
@@ -48,7 +49,7 @@ class BuildSitePage extends Page
     /**
      * The kinds this page builds.
      */
-    public const KINDS = [Document::PAGE, Document::HEADER, Document::FOOTER, Document::SECTION, Document::CARD, Document::SINGLE, Document::ENTRY];
+    public const KINDS = [Document::PAGE, Document::HEADER, Document::FOOTER, Document::SECTION, Document::TEMPLATE, Document::CARD, Document::SINGLE, Document::ENTRY];
 
     protected static string $resource = SitePageResource::class;
 
@@ -180,7 +181,7 @@ class BuildSitePage extends Page
             return $entries;
         }
 
-        return $this->record->kind === Document::SECTION && $this->plugin()->hasSections()
+        return in_array($this->record->kind, [Document::SECTION, Document::TEMPLATE], true) && $this->plugin()->hasSections()
             ? SiteSectionResource::getUrl()
             : SitePageResource::getUrl();
     }
@@ -191,11 +192,16 @@ class BuildSitePage extends Page
     }
 
     /**
-     * The builder knows no "entry" kind: an entry's body is built as a page.
+     * The builder knows no "entry" or "template" kind: an entry's body is
+     * built as a page, a saved section as one section.
      */
     protected function getPageBuilderKind(): string
     {
-        return $this->record->kind === Document::ENTRY ? Document::PAGE : $this->record->kind;
+        return match ($this->record->kind) {
+            Document::ENTRY => Document::PAGE,
+            Document::TEMPLATE => Document::SECTION,
+            default => $this->record->kind,
+        };
     }
 
     /**

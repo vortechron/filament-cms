@@ -44,33 +44,39 @@ class BuilderKindsTest extends TestCase
     }
 
     /**
-     * @return array<string, array{string}>
+     * Each stored kind the builder opens, and the builder kind it opens it as.
+     * An entry's body has its own tests (EntryBuildersTest): it needs a registered type.
+     *
+     * @return array<string, array{string, string}>
      */
     public static function buildableKinds(): array
     {
-        // An entry's body has its own tests (EntryBuildersTest): it needs a registered type.
-        $kinds = array_values(array_diff(BuildSitePage::KINDS, [Document::ENTRY]));
-
-        return array_combine($kinds, array_map(fn (string $kind): array => [$kind], $kinds));
+        return [
+            'page' => ['page', 'page'],
+            'header' => ['header', 'header'],
+            'footer' => ['footer', 'footer'],
+            'synced section' => ['section', 'section'],
+            'saved section' => ['template', 'section'],
+            'card' => ['card', 'card'],
+            'single' => ['single', 'single'],
+        ];
     }
 
     #[DataProvider('buildableKinds')]
-    public function test_the_builder_opens_for_every_kind_it_builds(string $kind): void
+    public function test_the_builder_opens_for_every_kind_it_builds(string $kind, string $builderKind): void
     {
         $this->actingAsClient();
         $document = $kind === Document::PAGE ? $this->home() : $this->document($kind);
 
         $this->get(BuildSitePage::getUrl(['record' => $document]))->assertOk()->assertSee('mountPageBuilder', false);
-        $this->assertSame($kind, $this->builderOptions($document)['kind']);
+        $this->assertSame($builderKind, $this->builderOptions($document)['kind']);
     }
 
     public function test_kinds_the_builder_does_not_build_are_not_found(): void
     {
         $this->actingAsClient();
 
-        foreach ([Document::TEMPLATE, Document::KIT] as $kind) {
-            $this->get(BuildSitePage::getUrl(['record' => $this->document($kind)]))->assertNotFound();
-        }
+        $this->get(BuildSitePage::getUrl(['record' => $this->document(Document::KIT)]))->assertNotFound();
     }
 
     public function test_the_header_and_footer_are_made_when_first_built(): void

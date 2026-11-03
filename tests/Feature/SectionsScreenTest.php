@@ -46,7 +46,7 @@ class SectionsScreenTest extends TestCase
             ->assertSee(['Segerak', 'Templat']);
     }
 
-    public function test_only_a_synced_section_has_bina(): void
+    public function test_synced_and_saved_sections_both_have_bina(): void
     {
         $synced = $this->saved(Document::SECTION, 'Promosi');
         $template = $this->saved(Document::TEMPLATE, 'Kotak harga');
@@ -55,7 +55,24 @@ class SectionsScreenTest extends TestCase
         Livewire::test(ManageSiteSections::class)
             ->assertActionVisible(TestAction::make('build')->table($synced))
             ->assertActionHasUrl(TestAction::make('build')->table($synced), BuildSitePage::getUrl(['record' => $synced]))
-            ->assertActionHidden(TestAction::make('build')->table($template));
+            ->assertActionVisible(TestAction::make('build')->table($template))
+            ->assertActionHasUrl(TestAction::make('build')->table($template), BuildSitePage::getUrl(['record' => $template]));
+    }
+
+    public function test_a_saved_section_is_built_as_one_section_and_goes_back_to_this_screen(): void
+    {
+        $template = $this->saved(Document::TEMPLATE, 'Kotak harga');
+        $this->actingAsClient();
+
+        $this->get(BuildSitePage::getUrl(['record' => $template]))->assertOk()->assertSee('mountPageBuilder', false);
+        $builder = Livewire::test(BuildSitePage::class, ['record' => $template->getKey()]);
+        $options = $builder->instance()->getPageBuilderOptions();
+        $this->assertSame(['section', 'Kotak harga', SiteSectionResource::getUrl()], [$options['kind'], $options['title'], $options['backUrl']]);
+
+        $section = ['id' => 'syn00001', 'type' => 'rich', 'data' => ['document' => [Blocks::paragraph('Harga baru')]]];
+        $this->assertTrue($builder->call('savePageBuilder', ['version' => 2, 'sections' => [$section]])->effects['returns'][0]['ok']);
+        $this->assertStringContainsString('Harga baru', json_encode($template->fresh()->content));
+        $this->assertFalse($builder->call('savePageBuilder', ['version' => 2, 'sections' => [$section, [...$section, 'id' => 'syn00002']]])->effects['returns'][0]['ok']);
     }
 
     public function test_a_section_can_be_renamed(): void
