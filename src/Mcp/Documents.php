@@ -2,6 +2,7 @@
 
 namespace Vortechron\FilamentCms\Mcp;
 
+use Laravel\Mcp\ResponseFactory;
 use Vortechron\FilamentCms\Models\Document;
 
 /**
@@ -31,5 +32,24 @@ final class Documents
         $path = Document::cleanPath((string) $input['path']);
 
         return Document::query()->where('path', $path)->first() ?? ['path' => "No page or entry has the path {$path}."];
+    }
+
+    /**
+     * The document with this id when it is of one of the kinds, or the
+     * refusal under `$key`.
+     *
+     * @param  list<string>  $kinds
+     */
+    public static function byId(mixed $id, string $key, array $kinds = Document::KINDS): Document|ResponseFactory
+    {
+        $document = is_int($id) || (is_string($id) && ctype_digit($id)) ? Document::query()->find((int) $id) : null;
+
+        if ($document === null) {
+            return Reply::refuse($key, 'There is no document with id '.json_encode($id).'.');
+        }
+
+        return in_array($document->kind, $kinds, true)
+            ? $document
+            : Reply::refuse($key, "Document {$document->getKey()} is of kind {$document->kind}, which this tool does not change.");
     }
 }
