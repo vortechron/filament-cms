@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Design\Kit;
+use Vortechron\FilamentCms\Entries\EntryContent;
 use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Document;
 
@@ -29,13 +30,19 @@ final class DocumentStore
     private const ONE_SECTION = [Document::SECTION, Document::TEMPLATE];
 
     /**
-     * @param  array<mixed>  $value  a page value of any format, or a kit for kind "kit"
+     * @param  array<mixed>  $value  a page value of any format, a kit for kind "kit", or for kind "entry" `fields` and/or `sections` (see EntryContent)
      * @param  bool|null  $developer  who may change locks; null asks the panel's plugin (false outside a panel)
      * @return array{ok: bool, errors?: array<string, string>}
      */
     public function save(Document $document, array $value, ?Authenticatable $user, ?bool $developer = null): array
     {
-        $errors = $document->kind === Document::KIT ? $this->kitErrors($value) : $this->pageErrors($document, $value);
+        $isEntry = $document->kind === Document::ENTRY;
+        $value = $isEntry ? EntryContent::merge($document, $value) : $value;
+        $errors = match (true) {
+            $document->kind === Document::KIT => $this->kitErrors($value),
+            $isEntry => EntryContent::errors($document, $value) ?: $this->pageErrors($document, $value),
+            default => $this->pageErrors($document, $value),
+        };
 
         if ($errors !== []) {
             return ['ok' => false, 'errors' => $errors];
@@ -43,11 +50,15 @@ final class DocumentStore
 
         $developer ??= self::isDeveloper($user);
 
-        DB::transaction(function () use ($document, $value, $user, $developer): void {
+        DB::transaction(function () use ($document, $value, $user, $developer, $isEntry): void {
             $clean = $document->kind === Document::KIT ? Kit::normalize($value) : PageValue::normalize($value);
 
             if ($document->kind !== Document::KIT && ! $developer) {
                 $clean = PageValue::guard($clean, PageValue::normalize($this->storedContent($document)));
+            }
+
+            if ($isEntry) {
+                $clean = EntryContent::clean($document, $value, $clean);
             }
 
             $document->forceFill(['content' => $clean])->save();
