@@ -57,7 +57,7 @@ final class DocumentInfo
 
         return match ($document->kind) {
             Document::KIT => Kit::normalize($content),
-            Document::ENTRY => [...PageValue::upgrade($content), 'sections' => PageValue::normalize($content)['sections']],
+            Document::ENTRY => [...PageValue::upgrade($content), 'sections' => $document->contentSections()],
             default => PageValue::normalize($content),
         };
     }

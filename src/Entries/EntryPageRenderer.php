@@ -5,7 +5,6 @@ namespace Vortechron\FilamentCms\Entries;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
 use Vortechron\FilamentCms\Models\Document;
@@ -33,7 +32,7 @@ final class EntryPageRenderer
         $type = $entry->definition();
         $values = [...SitePageRenderer::pageValues($entry), ...EntryValues::of($entry)];
         $context = new RenderContext(forBuilder: $forBuilder, isPreview: $forBuilder, values: $values);
-        $sections ??= $type?->hasBody() ? PageValue::normalize($entry->content ?? [])['sections'] : [];
+        $sections ??= $type?->hasBody() ? $entry->contentSections() : [];
 
         return $this->site->layout($this->withSeo($entry, $type), $sections, $context, $this->top($entry, $type, $values, $forBuilder).$this->pages->render($sections, $context));
     }
@@ -46,7 +45,7 @@ final class EntryPageRenderer
     private function top(Entry $entry, ?EntryType $type, array $values, bool $forBuilder): string
     {
         $single = $type === null ? null : EntryTemplates::find($type, Document::SINGLE);
-        $sections = PageContent::visible(PageValue::normalize($single?->content ?? [])['sections']);
+        $sections = PageContent::visible($single?->contentSections() ?? []);
 
         if ($sections === []) {
             return view('filament-cms::entries.page', ['entry' => $entry, 'type' => $type, 'values' => $values])->render();

@@ -4,7 +4,6 @@ namespace Vortechron\FilamentCms\Mcp\Entries;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentCms\Entries\EntryStore;
 use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Entries\EntryTypes;
@@ -159,7 +158,7 @@ final class RegisteredEntries implements McpEntries
             'published' => (bool) $entry->is_published,
             'sort' => (int) $entry->sort,
             'fields' => $entry->fieldValues(),
-            'sections' => PageValue::normalize(is_array($entry->content) ? $entry->content : [])['sections'],
+            'sections' => $entry->contentSections(),
         ];
     }
 }

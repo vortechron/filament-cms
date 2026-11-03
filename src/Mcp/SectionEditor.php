@@ -54,7 +54,7 @@ final class SectionEditor
      */
     public static function stored(Document $document): array
     {
-        return PageValue::normalize(is_array($document->content) ? $document->content : [])['sections'];
+        return $document->contentSections();
     }
 
     /**

@@ -5,7 +5,6 @@ namespace Vortechron\FilamentCms\Forms;
 use Vortechron\FilamentBlockEditor\BlockNote\BlockNoteDocument;
 use Vortechron\FilamentBlockEditor\BlockNote\Blocks;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentBlockEditor\Forms\FormDefinition;
 use Vortechron\FilamentCms\Models\Document;
@@ -98,7 +97,7 @@ final class FormLocator
      */
     private static function sectionsOf(?Document $document, bool $shownOnly): array
     {
-        $sections = PageValue::normalize($document?->content ?? [])['sections'];
+        $sections = $document?->contentSections() ?? [];
 
         return $shownOnly ? PageContent::visible($sections) : $sections;
     }

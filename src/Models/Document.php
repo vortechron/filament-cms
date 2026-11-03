@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Vortechron\FilamentBlockEditor\Content\PageValue;
 
 /**
  * Everything the client builds in the page builder, one row each: pages,
@@ -138,6 +139,27 @@ class Document extends Model
     public function revisionKey(): string
     {
         return (($this->kind ?? self::PAGE) === self::PAGE ? 'page:' : 'doc:').$this->getKey();
+    }
+
+    /**
+     * Its sections, read the one way: the stored content upgraded to
+     * format 2 and cleaned. A kit has none.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function contentSections(): array
+    {
+        return self::sectionsOf($this->kind === self::KIT ? null : $this->content);
+    }
+
+    /**
+     * The sections of any stored content (a document's, a version's).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function sectionsOf(mixed $content): array
+    {
+        return PageValue::normalize(is_array($content) ? $content : [])['sections'];
     }
 
     public function url(): ?string

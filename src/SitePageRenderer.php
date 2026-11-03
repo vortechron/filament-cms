@@ -4,7 +4,6 @@ namespace Vortechron\FilamentCms;
 
 use Illuminate\Contracts\View\View;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
 use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
@@ -76,7 +75,7 @@ final class SitePageRenderer
      */
     public function part(string $kind, array $values = []): string
     {
-        $sections = PageValue::normalize(Document::firstOfKind($kind)?->content ?? [])['sections'];
+        $sections = Document::firstOfKind($kind)?->contentSections() ?? [];
 
         if (PageContent::visible($sections) === []) {
             return '';

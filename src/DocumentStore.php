@@ -81,7 +81,7 @@ final class DocumentStore
 
         $content = is_array($revision->content) ? $revision->content : [];
 
-        return $this->save($document, $document->kind === Document::ENTRY ? ['sections' => PageValue::normalize($content)['sections']] : $content, $user, $developer);
+        return $this->save($document, $document->kind === Document::ENTRY ? ['sections' => Document::sectionsOf($content)] : $content, $user, $developer);
     }
 
     /**

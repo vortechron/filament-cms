@@ -10,7 +10,6 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
 use Vortechron\FilamentCms\Entries\EntryBuilder;
@@ -65,7 +64,7 @@ class RenderDocument extends Tool
         $pageValues = $page === null ? self::homeValues() : SitePageRenderer::pageValues($page);
         $isCard = $document->kind === Document::CARD;
         $values = $isCard ? EntryList::cardValues($pageValues, EntryBuilder::entryValues($document)) : [...$pageValues, ...EntryBuilder::entryValues($document)];
-        $draw = fn (): string => $pages->render(PageValue::normalize($document->content ?? [])['sections'], new RenderContext(values: $values));
+        $draw = fn (): string => $pages->render($document->contentSections(), new RenderContext(values: $values));
 
         return '<div class="sf-page">'.($isCard ? EntryList::drawingCard($draw) : $draw()).'</div>';
     }

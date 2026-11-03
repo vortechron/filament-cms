@@ -9,7 +9,6 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentCms\Mcp\Documents;
 use Vortechron\FilamentCms\Mcp\Reply;
 use Vortechron\FilamentCms\Mcp\SectionEditor;
@@ -36,7 +35,7 @@ class ListVersions extends Tool
             'saved_at' => $version->created_at?->toIso8601String(),
             'user' => $version->user === null ? null : ['name' => $version->user->getAttribute('name'), 'email' => $version->user->getAttribute('email')],
             'current' => $version->content === $document->content,
-            ...($document->kind === Document::KIT ? [] : ['outline' => SectionEditor::outline(PageValue::normalize($version->content)['sections'])]),
+            ...($document->kind === Document::KIT ? [] : ['outline' => SectionEditor::outline(Document::sectionsOf($version->content))]),
             ...($document->kind === Document::ENTRY ? ['fields' => is_array($version->content['fields'] ?? null) ? $version->content['fields'] : []] : []),
         ])->all()]);
     }

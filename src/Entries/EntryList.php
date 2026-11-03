@@ -8,7 +8,6 @@ use Vortechron\FilamentBlockEditor\Blocks\BlockRegistry;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentBlockEditor\Blocks\OwnBlock;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
 use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
@@ -111,7 +110,7 @@ final class EntryList
             return $text === '' ? '' : view('filament-cms::entries.empty', ['text' => $text])->render();
         }
 
-        $card = PageContent::visible(PageValue::normalize(EntryTemplates::find($type, Document::CARD)?->content ?? [])['sections']);
+        $card = PageContent::visible(EntryTemplates::find($type, Document::CARD)?->contentSections() ?? []);
 
         return view('filament-cms::entries.list', [
             'columns' => max(1, min(4, (int) ($values['columns'] ?? 3))),

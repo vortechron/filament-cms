@@ -2,8 +2,6 @@
 
 namespace Vortechron\FilamentCms;
 
-use Vortechron\FilamentBlockEditor\Content\PageContent;
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentCms\Models\Document;
 
@@ -21,9 +19,8 @@ final class CmsSectionResolver implements SectionResolver
             return null;
         }
 
-        $content = Document::query()->ofKind(Document::SECTION)->whereKey((int) $ref)->value('content');
-        $section = PageValue::normalize(is_array($content) ? $content : [])['sections'][0] ?? null;
+        $synced = Document::query()->ofKind(Document::SECTION)->find((int) $ref);
 
-        return ($section['type'] ?? null) === PageContent::TYPE ? $section : null;
+        return $synced === null ? null : SectionLibrary::firstSection($synced);
     }
 }

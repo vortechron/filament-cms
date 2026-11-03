@@ -78,7 +78,7 @@ final class SectionLibrary
     public function usedBy(Document $synced): Collection
     {
         return Document::query()->whereIn('kind', self::USERS)->orderBy('title')->lazy()
-            ->filter(fn (Document $document): bool => collect(PageValue::normalize($document->content ?? [])['sections'])
+            ->filter(fn (Document $document): bool => collect($document->contentSections())
                 ->contains(fn (array $section): bool => $section['type'] === PageContent::REF && (string) $section['ref'] === (string) $synced->getKey()))
             ->values()
             ->collect();
@@ -91,7 +91,7 @@ final class SectionLibrary
      */
     public static function firstSection(Document $document): ?array
     {
-        $section = PageValue::normalize($document->content ?? [])['sections'][0] ?? null;
+        $section = $document->contentSections()[0] ?? null;
 
         return ($section['type'] ?? null) === PageContent::TYPE ? $section : null;
     }
