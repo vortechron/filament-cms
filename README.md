@@ -26,7 +26,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.3
+composer require vortechron/filament-cms:^0.3.1
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
