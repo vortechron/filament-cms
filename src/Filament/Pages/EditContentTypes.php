@@ -46,7 +46,7 @@ class EditContentTypes extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSquares2x2;
 
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 100;
 
     /**
      * @var array<string, mixed>|null
