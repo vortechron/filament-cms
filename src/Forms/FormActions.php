@@ -4,8 +4,10 @@ namespace Vortechron\FilamentCms\Forms;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Traits\Localizable;
 use Throwable;
 use Vortechron\FilamentBlockEditor\Content\DynamicValues;
+use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
 use Vortechron\FilamentCms\Mail\FormSubmissionMail;
 use Vortechron\FilamentCms\Models\FormSubmission;
@@ -17,6 +19,8 @@ use Vortechron\FilamentCms\Models\FormSubmission;
  */
 final class FormActions
 {
+    use Localizable;
+
     private const QUIET_MAILERS = ['log', 'array'];
 
     public function __construct(
@@ -65,16 +69,21 @@ final class FormActions
             return;
         }
 
-        $name = $found->form->name() !== '' ? $found->form->name() : __('filament-cms::forms.form');
-        $subject = ($action['subject'] ?? '') !== '' ? $action['subject'] : __('filament-cms::forms.mail_subject', ['form' => $name]);
+        // The shop reads it in the panel's language, not the visitor's.
+        $locale = ContentLocale::panel();
 
-        Mail::to($to)->send(new FormSubmissionMail(
-            $name,
-            SubmissionRows::make($found->form, $submission->data),
-            $submission->meta['page'] ?? null,
-            $subject,
-            $this->visitorEmail($found, $submission),
-        ));
+        $this->withLocale($locale, function () use ($found, $action, $submission, $to, $locale): void {
+            $name = $found->form->name() !== '' ? $found->form->name() : __('filament-cms::forms.form');
+            $subject = ($action['subject'] ?? '') !== '' ? $action['subject'] : __('filament-cms::forms.mail_subject', ['form' => $name]);
+
+            Mail::to($to)->locale($locale)->send(new FormSubmissionMail(
+                $name,
+                SubmissionRows::make($found->form, $submission->data),
+                $submission->meta['page'] ?? null,
+                $subject,
+                $this->visitorEmail($found, $submission),
+            ));
+        });
     }
 
     /**

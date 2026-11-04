@@ -8,6 +8,7 @@ use Vortechron\FilamentBlockEditor\Blocks\BlockRegistry;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentBlockEditor\Blocks\OwnBlock;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
+use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
 use Vortechron\FilamentBlockEditor\Rendering\PageRenderer;
 use Vortechron\FilamentBlockEditor\Rendering\RenderContext;
 use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
@@ -63,7 +64,7 @@ final class EntryList
                     'title' => __('filament-cms::entries.order_title'),
                     'manual' => __('filament-cms::entries.order_manual'),
                 ]),
-                Field::text('empty_text')->label(__('filament-cms::entries.list_empty_text'))->default(__('filament-cms::entries.list_empty')),
+                Field::text('empty_text')->label(__('filament-cms::entries.list_empty_text'))->default(__('filament-cms::entries.list_empty', [], ContentLocale::site())),
             ])
             ->view('filament-cms::entries.block'));
     }

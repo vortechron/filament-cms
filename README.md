@@ -16,6 +16,11 @@ You build the page in Blade and CSS. The client edits its text, photos and lists
 - **Versions**: the newest 20 saves of every page are kept. Developers can restore one.
 - **Photos**: shrunk in the browser to at most 1920 pixels before upload.
 
+**Languages**: the panel speaks the app's language (`APP_LOCALE`), visitors the site's (`SITE_LOCALE`, the block
+editor's `content_locale`). Our clients use `APP_LOCALE=en` and `SITE_LOCALE=ms`: an English panel and a Malay site.
+`FilamentCms::routes()` answers in the site's language (the page, a form's errors), the shop's form email goes out in
+the panel's, and the builder's preview draws the page in the site's.
+
 The package never draws the public page's design. Each project owns its look; the only CSS it ships is the small,
 optional stylesheet of the plain entry card and entry page (see Entries).
 
@@ -26,7 +31,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.6
+composer require vortechron/filament-cms:^0.7
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link

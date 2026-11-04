@@ -12,6 +12,7 @@ use Vortechron\FilamentCms\Forms\CmsFormEndpoint;
 use Vortechron\FilamentCms\Http\Controllers\ShowSitePage;
 use Vortechron\FilamentCms\Http\Controllers\SubmitForm;
 use Vortechron\FilamentCms\Http\Middleware\CmsMcpToken;
+use Vortechron\FilamentCms\Http\Middleware\UseSiteLanguage;
 use Vortechron\FilamentCms\Mcp\CmsServer;
 
 final class FilamentCms
@@ -32,17 +33,20 @@ final class FilamentCms
     /**
      * Shows site pages at their own addresses. Call it last in
      * routes/web.php: it answers every address no other route took.
+     * Both answer in the site's language (Http\Middleware\UseSiteLanguage).
      */
     public static function routes(): void
     {
-        // A visitor sends a form block; the stored form decides what is kept.
-        Route::post('/_cms/forms/{document}', SubmitForm::class)->name(CmsFormEndpoint::ROUTE);
+        Route::middleware(UseSiteLanguage::class)->group(function (): void {
+            // A visitor sends a form block; the stored form decides what is kept.
+            Route::post('/_cms/forms/{document}', SubmitForm::class)->name(CmsFormEndpoint::ROUTE);
 
-        $reserved = implode('|', array_map(fn (string $path): string => preg_quote($path, '/'), self::RESERVED_PATHS));
+            $reserved = implode('|', array_map(fn (string $path): string => preg_quote($path, '/'), self::RESERVED_PATHS));
 
-        Route::get('/{path?}', ShowSitePage::class)
-            ->where('path', "(?!(?:{$reserved})(?:/|$)).*")
-            ->name('filament-cms.page');
+            Route::get('/{path?}', ShowSitePage::class)
+                ->where('path', "(?!(?:{$reserved})(?:/|$)).*")
+                ->name('filament-cms.page');
+        });
     }
 
     /**

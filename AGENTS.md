@@ -21,7 +21,9 @@ and how to use it: `README.md`. Why the design is shaped this way: `docs/v2-devi
 
 ## Rules
 
-- Panel words are in Bahasa Melayu (`resources/lang/ms`), with English in `resources/lang/en`.
+- Every panel word has English (`resources/lang/en`) and Malay (`resources/lang/ms`). Our clients see the panel in
+  English (`APP_LOCALE=en`) and the site in Malay (`SITE_LOCALE=ms`). Words a visitor sees follow the site's
+  language; words for the owner (the panel, the form email) follow the panel's (`ContentLocale::panel()`).
 - The page limit (`max_pages`, `PageLimit`) defaults to no limit here. Each client sets its package's number in its
   own `config/filament-cms.php` (Website Starter: `env('CMS_MAX_PAGES', 5)`).
 - Local PHP is `php84`. Use `/opt/homebrew/bin/composer`; the Herd composer path has a space in it.
