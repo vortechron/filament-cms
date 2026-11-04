@@ -1,5 +1,5 @@
 {{--
     The "cms-entries" own block (Entries\EntryList). $values are its cleaned
-    fields, $context the RenderContext.
+    fields, $block the BlockNote block, $context the RenderContext.
 --}}
-{!! app(\Vortechron\FilamentCms\Entries\EntryList::class)->render($values, $context) !!}
+{!! app(\Vortechron\FilamentCms\Entries\EntryList::class)->render($values, $context, $block) !!}

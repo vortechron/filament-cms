@@ -313,7 +313,9 @@ be `/` or start with an address the site uses (`FilamentCms::RESERVED_PATHS`: `a
   page. Both open the page builder and offer the entry's values as dynamic values, with the first entry as the
   preview.
 - **The list block** "Senarai entri" (`cms-entries`) shows the published entries of a type: how many (1 to 48),
-  1 to 4 columns, the order, and a text for when there are none. With no card designed it draws a plain card
+  1 to 4 columns, the order, and a text for when there are none. "Only linked to" keeps the entries whose link
+  field points at one entry (the items of one category). With page buttons on, "how many" is per page and the
+  visitor flips through up to 48 with ‹ › (the block editor's pager, no JavaScript). With no card designed it draws a plain card
   (first picture, title, first textarea, a link to the page). A list inside a card is never drawn, and a form
   inside a card is not connected (see Forms).
 - **Entry pages** are drawn in your `page_view` with `$page` as the entry: the entry page design, or a plain

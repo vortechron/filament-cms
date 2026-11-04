@@ -8,11 +8,13 @@ use Livewire\Livewire;
 use Vortechron\FilamentBlockEditor\BlockNote\Blocks;
 use Vortechron\FilamentBlockEditor\Blocks\BlockRegistry;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentCms\ContentStore;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Entries\EntryStore;
 use Vortechron\FilamentCms\Entries\EntryTemplates;
 use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Entries\EntryTypes;
+use Vortechron\FilamentCms\Entries\StoredEntryTypes;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\Document;
@@ -58,7 +60,7 @@ class EntryListBlockTest extends TestCase
     private function listPage(array $values): SitePage
     {
         return SitePage::query()->create(['title' => 'Senarai', 'path' => '/senarai', 'is_published' => true, 'sections' => [
-            ['id' => 'list0001', 'type' => 'rich', 'data' => ['document' => [Blocks::ownBlock('cms-entries', $values)]]],
+            ['id' => 'list0001', 'type' => 'rich', 'data' => ['document' => [['id' => 'list0001-entries', ...Blocks::ownBlock('cms-entries', $values)]]]],
         ]]);
     }
 
@@ -86,7 +88,7 @@ class EntryListBlockTest extends TestCase
 
         $this->assertNotNull($block);
         $fields = collect($block['fields'])->keyBy('name');
-        $this->assertSame(['type', 'limit', 'columns', 'order', 'empty_text'], $fields->keys()->all());
+        $this->assertSame(['type', 'linked', 'limit', 'pages', 'columns', 'order', 'empty_text'], $fields->keys()->all());
         $this->assertSame([['value' => 'product', 'label' => 'Semua produk'], ['value' => 'faq', 'label' => 'Soalan']], $fields['type']['options']);
         $this->assertSame(['number', 1, 48, 6], [$fields['limit']['type'], $fields['limit']['min'], $fields['limit']['max'], $fields['limit']['default']]);
         $this->assertSame(['1', '2', '3', '4'], array_column($fields['columns']['options'], 'value'));
@@ -292,5 +294,77 @@ class EntryListBlockTest extends TestCase
 
         FilamentCmsPlugin::get()->entries(false);
         $this->assertNotContains('cms-entries', $kinds());
+    }
+
+    public function test_with_page_buttons_the_list_is_cut_into_pages_a_visitor_flips_through(): void
+    {
+        $this->registerTypes();
+
+        foreach (['Anggerik', 'Bakawali', 'Cempaka', 'Dahlia', 'Emas'] as $name) {
+            $this->entry('product', $name);
+        }
+
+        $this->listPage(['type' => 'product', 'order' => 'title', 'limit' => 2, 'pages' => true]);
+        $html = $this->main($this->get('/senarai')->assertOk()->getContent());
+
+        foreach (['Anggerik', 'Bakawali', 'Cempaka', 'Dahlia', 'Emas'] as $name) {
+            $this->assertStringContainsString($name, $html);
+        }
+
+        $this->assertSame(3, substr_count($html, 'name="fbe-pager-list0001-entries"'));
+        $this->assertStringContainsString('1 / 3', $html);
+        $this->assertSame(3, substr_count($html, 'class="cms-entries cms-entries-3"'));
+    }
+
+    public function test_without_page_buttons_only_the_first_few_show(): void
+    {
+        $this->registerTypes();
+
+        foreach (['Anggerik', 'Bakawali', 'Cempaka'] as $name) {
+            $this->entry('product', $name);
+        }
+
+        $this->listPage(['type' => 'product', 'order' => 'title', 'limit' => 2]);
+        $html = $this->main($this->get('/senarai')->getContent());
+
+        $this->assertStringContainsString('Bakawali', $html);
+        $this->assertStringNotContainsString('Cempaka', $html);
+        $this->assertStringNotContainsString('fbe-pager', $html);
+    }
+
+    public function test_a_list_can_show_only_the_entries_linked_to_one_entry(): void
+    {
+        [$definitions] = StoredEntryTypes::clean([
+            ['key' => 'item', 'label' => 'Item', 'plural_label' => 'Items', 'sort' => 'manual', 'fields' => [
+                ['label' => 'Category', 'name' => 'category', 'type' => 'entry', 'target' => 'item-category'],
+            ]],
+            ['key' => 'item-category', 'label' => 'Item category', 'plural_label' => 'Item categories', 'sort' => 'manual', 'fields' => []],
+        ], []);
+        app(ContentStore::class)->save(StoredEntryTypes::KEY, ['types' => $definitions], null);
+        app(EntryTypes::class)->flushStored();
+
+        $pens = $this->entry('item-category', 'Alat tulis');
+        $books = $this->entry('item-category', 'Buku');
+        $this->entry('item', 'Pen', ['fields' => ['category' => (string) $pens->getKey()]]);
+        $this->entry('item', 'Buku nota', ['fields' => ['category' => (string) $books->getKey()]]);
+
+        $field = collect(app(BlockRegistry::class)->get('cms-entries')->toArray()['fields'])->firstWhere('name', 'linked');
+        $this->assertSame(['', "item.category:{$pens->getKey()}", "item.category:{$books->getKey()}"], array_column($field['options'], 'value'));
+        $this->assertSame('Items · Category: Alat tulis', $field['options'][1]['label']);
+
+        $this->listPage(['type' => 'item', 'linked' => "item.category:{$pens->getKey()}"]);
+        $html = $this->main($this->get('/senarai')->getContent());
+
+        $this->assertStringContainsString('Pen', $html);
+        $this->assertStringNotContainsString('Buku nota', $html);
+    }
+
+    public function test_a_link_filter_of_another_type_is_left_out(): void
+    {
+        $this->registerTypes();
+        $this->entry('product', 'Anggerik');
+        $this->listPage(['type' => 'product', 'linked' => 'item.category:8']);
+
+        $this->assertStringContainsString('Anggerik', $this->main($this->get('/senarai')->getContent()));
     }
 }
