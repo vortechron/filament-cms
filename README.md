@@ -146,7 +146,7 @@ kind `kit`. `<x-filament-block-editor::styles />` prints it, and `cms_kit()` ret
 ### Synced and saved sections
 
 In the builder a section can be **made synced** (one section many pages show: edit it once, every page changes)
-or **saved as a template** (a copy in the add panel). The **Seksyen** screen lists both, with rename, delete and
+or **saved as a template** (a copy in the add panel). The **Saved sections** screen (Seksyen simpanan) lists both, with rename, delete and
 "Bina" (a saved section is built as one section, like a synced one). Deleting a synced section names the pages that
 show it; after that they draw nothing in its place. The screen is in the menu only once one exists; its empty list
 says how to make one. Turn it off with `->sections(false)`.

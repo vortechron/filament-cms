@@ -26,7 +26,7 @@ class NavigationTest extends TestCase
             'items' => array_map(fn (NavigationItem $item): string => $item->getLabel(), array_values($group->getItems()->all() ?? [])),
         ], array_values(Filament::getNavigation()));
 
-        $this->assertSame([['group' => 'Kandungan', 'items' => ['Halaman', 'Seksyen', 'Produk', 'Halaman utama', 'Borang', 'Tetapan']]], $groups);
+        $this->assertSame([['group' => 'Kandungan', 'items' => ['Halaman', 'Seksyen simpanan', 'Produk', 'Halaman utama', 'Borang', 'Tetapan']]], $groups);
         $this->get('/admin')->assertRedirect(SitePageResource::getUrl());
     }
 }

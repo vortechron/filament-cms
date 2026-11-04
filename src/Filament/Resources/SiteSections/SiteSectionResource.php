@@ -22,7 +22,7 @@ use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\SectionLibrary;
 
 /**
- * The "Seksyen" screen: synced sections (one section many pages show) and
+ * The "Saved sections" screen: synced sections (one section many pages show) and
  * saved sections (templates in the builder's add panel). Both are made in
  * the page builder; here they are renamed, deleted, or built ("Bina"). The same people who may edit pages may open it.
  * It shows in the menu only once one exists.
@@ -72,6 +72,14 @@ class SiteSectionResource extends Resource
     public static function getModelLabel(): string
     {
         return __('filament-cms::sections.section');
+    }
+
+    /**
+     * "Saved sections", as the builder's Add panel says, not title-cased.
+     */
+    public static function getNavigationLabel(): string
+    {
+        return __('filament-cms::sections.sections');
     }
 
     public static function getPluralModelLabel(): string
