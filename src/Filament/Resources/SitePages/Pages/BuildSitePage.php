@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentBlockEditor\Enums\DocumentKind;
 use Vortechron\FilamentBlockEditor\Filament\Concerns\InteractsWithPageBuilder;
+use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Cms;
 use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\DocumentStore;
@@ -88,6 +89,18 @@ class BuildSitePage extends Page
 
     public static function mayBuild(?Document $document): bool
     {
+        // The screen the document belongs to: entries and their designs, sections, or pages.
+        $kind = $document?->cmsKind();
+        $screen = match (true) {
+            $kind?->belongsToEntryType() === true => 'entries',
+            $kind?->holdsOneSection() === true => 'sections',
+            default => 'pages',
+        };
+
+        if (! CmsAccess::allows($screen)) {
+            return false;
+        }
+
         if ($document instanceof Entry) {
             return EntryResource::canEdit($document);
         }

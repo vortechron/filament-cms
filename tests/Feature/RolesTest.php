@@ -11,16 +11,23 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Access\CmsRoles;
+use Vortechron\FilamentCms\Entries\EntryStore;
+use Vortechron\FilamentCms\Entries\EntryType;
+use Vortechron\FilamentCms\Entries\EntryTypes;
 use Vortechron\FilamentCms\Filament\Pages\EditContentTypes;
 use Vortechron\FilamentCms\Filament\Pages\EditSettings;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\Filament\Resources\FormSubmissions\FormSubmissionResource;
 use Vortechron\FilamentCms\Filament\Resources\Roles\Pages\ManageRoles;
 use Vortechron\FilamentCms\Filament\Resources\Roles\RoleResource;
+use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\SitePageResource;
 use Vortechron\FilamentCms\Filament\Resources\Users\Pages\ManageUsers;
 use Vortechron\FilamentCms\Filament\Resources\Users\UserResource;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
+use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\Models\Entry;
+use Vortechron\FilamentCms\Models\SitePage;
 use Vortechron\FilamentCms\Tests\TestCase;
 use Workbench\App\Models\User;
 
@@ -195,6 +202,49 @@ class RolesTest extends TestCase
             ->assertActionVisible(TestAction::make('delete')->table(Role::findByName('staff', 'web')));
 
         $this->assertSame(['cms.forms'], $this->permissionsOf('staff'));
+    }
+
+    public function test_someone_with_users_only_manages_people_no_stronger_than_themselves(): void
+    {
+        $this->rolesOn();
+        Role::create(['name' => 'staff', 'guard_name' => 'web'])->givePermissionTo(['cms.users', 'cms.forms']);
+        $shop = User::factory()->create(['name' => 'Adam']);
+        $shop->assignRole(CmsRoles::ADMIN);
+        $staff = $this->signInAs('staff', ['name' => 'Staff']);
+
+        $this->assertSame(['staff' => 'Staff'], CmsAccess::assignableRoles());
+
+        Livewire::test(ManageUsers::class)
+            ->assertCanSeeTableRecords([$staff])
+            ->assertCanNotSeeTableRecords([$shop])
+            ->callAction(CreateAction::class, ['name' => 'Siti', 'email' => 'siti@example.com', 'password' => 'a-long-password', 'role' => CmsRoles::ADMIN])
+            ->assertHasActionErrors(['role']);
+
+        $this->assertNull(User::query()->where('email', 'siti@example.com')->first());
+    }
+
+    public function test_the_builder_opens_a_section_or_an_entry_only_with_that_screens_permission(): void
+    {
+        $this->rolesOn();
+        app(EntryTypes::class)->register(EntryType::make('product')->label('Product')->path('/product')->body(true)->fields([]));
+        $section = Document::query()->create(['kind' => Document::SECTION, 'title' => 'Promo', 'content' => ['version' => 2, 'sections' => []]]);
+        $entry = new Entry(['entry_type' => 'product']);
+        app(EntryStore::class)->save($entry, ['title' => 'Blue pen', 'is_published' => true], null);
+        $home = SitePage::query()->create(['title' => 'Home', 'path' => '/', 'sections' => []]);
+        Role::create(['name' => 'writer', 'guard_name' => 'web'])->givePermissionTo('cms.pages');
+        $this->signInAs('writer');
+
+        $this->get(BuildSitePage::getUrl(['record' => $home]))->assertOk();
+        $this->get(BuildSitePage::getUrl(['record' => $section]))->assertForbidden();
+        $this->get(BuildSitePage::getUrl(['record' => $entry]))->assertForbidden();
+
+        Role::findByName('writer', 'web')->givePermissionTo(['cms.sections', 'cms.entries']);
+        CmsRoles::forget();
+
+        $this->get(BuildSitePage::getUrl(['record' => $section]))->assertOk();
+        $this->get(BuildSitePage::getUrl(['record' => $entry]))->assertOk();
+
+        app(EntryTypes::class)->forget('product');
     }
 
     public function test_with_roles_off_users_and_roles_stay_closed_and_content_types_is_for_developers(): void

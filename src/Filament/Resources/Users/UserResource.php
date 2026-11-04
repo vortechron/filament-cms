@@ -21,9 +21,11 @@ use Vortechron\FilamentCms\Filament\Resources\Users\Pages\ManageUsers;
 
 /**
  * The people who sign in to the panel, each with one role. Only someone
- * with "cms.users" opens it. Nobody but a super admin sees, makes or edits
- * a super admin, and nobody changes their own role or deletes themselves,
- * so the shop can not lock Vortechron out, or itself.
+ * with "cms.users" opens it. Anyone but a super admin sees, makes and
+ * changes only people whose role is no stronger than their own (never a
+ * super admin: CmsAccess::assignableRoles()), and nobody changes their own
+ * role or deletes themselves, so the shop can not lock Vortechron out, or
+ * itself.
  */
 class UserResource extends Resource
 {
@@ -62,9 +64,13 @@ class UserResource extends Resource
     {
         $query = parent::getEloquentQuery()->with('roles');
 
-        return CmsAccess::isSuperAdmin()
-            ? $query
-            : $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->where('name', CmsRoles::SUPER_ADMIN));
+        if (CmsAccess::isSuperAdmin()) {
+            return $query;
+        }
+
+        $allowed = array_keys(CmsAccess::assignableRoles());
+
+        return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->whereNotIn('name', $allowed));
     }
 
     public static function form(Schema $schema): Schema

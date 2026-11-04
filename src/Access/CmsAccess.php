@@ -43,21 +43,28 @@ final class CmsAccess
     }
 
     /**
-     * The roles the signed-in person may give, by name, with their labels:
-     * every role for a super admin, all but super admin for anyone else.
+     * The roles the signed-in person may give, and so the people they may
+     * see and change, by name, with their labels: every role for a super
+     * admin; for anyone else, never super admin, and only a role whose
+     * screens they open themselves, so nobody hands out or takes over more
+     * than they have.
      *
      * @return array<string, string>
      */
     public static function assignableRoles(): array
     {
-        $super = self::isSuperAdmin();
+        $user = Filament::auth()->user();
+        $super = self::isSuperAdmin($user);
+        $own = $user !== null && method_exists($user, 'getAllPermissions') ? $user->getAllPermissions()->pluck('name') : collect();
 
         return Role::query()
+            ->with('permissions')
             ->where('guard_name', CmsRoles::guard())
             ->orderBy('id')
-            ->pluck('name')
-            ->reject(fn (string $name): bool => ! $super && $name === CmsRoles::SUPER_ADMIN)
-            ->mapWithKeys(fn (string $name): array => [$name => CmsRoles::roleLabel($name)])
+            ->get()
+            ->filter(fn (Role $role): bool => $super
+                || ($role->name !== CmsRoles::SUPER_ADMIN && $role->permissions->pluck('name')->diff($own)->isEmpty()))
+            ->mapWithKeys(fn (Role $role): array => [$role->name => CmsRoles::roleLabel($role->name)])
             ->all();
     }
 }
