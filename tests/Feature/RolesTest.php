@@ -14,7 +14,7 @@ use Vortechron\FilamentCms\Access\CmsRoles;
 use Vortechron\FilamentCms\Entries\EntryStore;
 use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Entries\EntryTypes;
-use Vortechron\FilamentCms\Filament\Pages\EditContentTypes;
+use Vortechron\FilamentCms\Filament\Pages\ContentTypes\ListContentTypes;
 use Vortechron\FilamentCms\Filament\Pages\EditSettings;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\Filament\Resources\FormSubmissions\FormSubmissionResource;
@@ -98,11 +98,11 @@ class RolesTest extends TestCase
         $this->assertTrue(EditSettings::canAccess());
         $this->assertTrue(UserResource::canAccess());
         $this->assertFalse(RoleResource::canAccess());
-        $this->assertFalse(EditContentTypes::canAccess());
+        $this->assertFalse(ListContentTypes::canAccess());
         $this->assertFalse(FilamentCmsPlugin::get()->isDeveloper($admin));
 
         $this->get(RoleResource::getUrl())->assertForbidden();
-        $this->get(EditContentTypes::getUrl())->assertForbidden();
+        $this->get(ListContentTypes::getUrl())->assertForbidden();
         $this->get(UserResource::getUrl())->assertOk()->assertSee('Users');
     }
 
@@ -111,7 +111,7 @@ class RolesTest extends TestCase
         $this->rolesOn();
         $super = $this->signInAs(CmsRoles::SUPER_ADMIN);
 
-        foreach ([SitePageResource::class, UserResource::class, RoleResource::class, EditContentTypes::class, EditSettings::class] as $screen) {
+        foreach ([SitePageResource::class, UserResource::class, RoleResource::class, ListContentTypes::class, EditSettings::class] as $screen) {
             $this->assertTrue($screen::canAccess(), $screen);
         }
 
@@ -253,12 +253,12 @@ class RolesTest extends TestCase
 
         $this->assertFalse(UserResource::canAccess());
         $this->assertFalse(RoleResource::canAccess());
-        $this->assertFalse(EditContentTypes::canAccess());
+        $this->assertFalse(ListContentTypes::canAccess());
         $this->assertTrue(SitePageResource::canAccess());
 
         $this->actingAsDeveloper();
 
-        $this->assertTrue(EditContentTypes::canAccess());
+        $this->assertTrue(ListContentTypes::canAccess());
         $this->assertFalse(UserResource::canAccess());
     }
 }

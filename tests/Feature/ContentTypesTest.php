@@ -11,7 +11,9 @@ use Vortechron\FilamentCms\Entries\EntryStore;
 use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Entries\EntryTypes;
 use Vortechron\FilamentCms\Entries\StoredEntryTypes;
-use Vortechron\FilamentCms\Filament\Pages\EditContentTypes;
+use Vortechron\FilamentCms\Filament\Pages\ContentTypes\CreateContentType;
+use Vortechron\FilamentCms\Filament\Pages\ContentTypes\EditContentType;
+use Vortechron\FilamentCms\Filament\Pages\ContentTypes\ListContentTypes;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Entry;
@@ -67,10 +69,13 @@ class ContentTypesTest extends TestCase
     {
         $this->actingAsDeveloper();
 
-        Livewire::test(EditContentTypes::class)
-            ->fillForm(['types' => [self::product()]])
+        $this->get(ListContentTypes::getUrl())->assertOk()->assertSee(['No content types yet.', 'New content type']);
+
+        Livewire::test(CreateContentType::class)
+            ->fillForm(self::product())
             ->call('save')
-            ->assertNotified('Saved. The new types are in the menu now.');
+            ->assertNotified('Saved. The new types are in the menu now.')
+            ->assertRedirect(ListContentTypes::getUrl());
 
         $type = app(EntryTypes::class)->get('product');
         $this->assertNotNull($type);
@@ -87,28 +92,113 @@ class ContentTypesTest extends TestCase
         $this->get('/products/blue-pen')->assertOk()->assertSee('Blue pen');
     }
 
-    public function test_a_saved_key_can_not_change_and_the_screen_shows_the_saved_types(): void
+    public function test_the_list_shows_each_type_and_opens_it_to_edit(): void
     {
-        $this->store([self::product()]);
+        $this->store([self::product(), self::product(['key' => 'event', 'label' => 'Event', 'plural_label' => 'Events', 'path' => '/events', 'fields' => []])]);
+        app(EntryTypes::class)->register(EntryType::make('faq')->label('FAQ')->fields([]));
+        app(EntryStore::class)->save(new Entry(['entry_type' => 'product']), ['title' => 'Blue pen'], null);
         $this->actingAsDeveloper();
 
-        Livewire::test(EditContentTypes::class)
-            ->assertFormSet(fn (array $state): bool => ($state['types'][array_key_first($state['types'])]['saved_key'] ?? null) === 'product')
-            ->assertSee('Product');
+        Livewire::test(ListContentTypes::class)
+            ->assertCanSeeTableRecords(['product', 'event', 'faq'])
+            ->assertTableColumnStateSet('entries', 1, 'product')
+            ->assertTableColumnStateSet('fields', 3, 'product')
+            ->assertTableActionVisible('edit', 'product')
+            ->assertTableActionHidden('edit', 'faq');
+
+        $this->get(EditContentType::getUrl(['type' => 'product']))->assertOk()->assertSee(['Edit Product', 'Price', 'Big box']);
+        $this->get(EditContentType::getUrl(['type' => 'ghost']))->assertNotFound();
+        app(EntryTypes::class)->forget('faq');
+    }
+
+    public function test_editing_a_type_keeps_its_key_and_its_place(): void
+    {
+        $this->store([self::product(), self::product(['key' => 'event', 'label' => 'Event', 'path' => '/events'])]);
+        $this->actingAsDeveloper();
+
+        Livewire::test(EditContentType::class, ['type' => 'product'])
+            ->assertFormSet(['key' => 'product', 'label' => 'Product'])
+            ->fillForm(['key' => 'changed', 'label' => 'Stock item'])
+            ->call('save')
+            ->assertNotified('Saved. The new types are in the menu now.');
+
+        $this->assertSame(['product', 'event'], array_column(StoredEntryTypes::definitions(), 'key'));
+        $this->assertSame('Stock item', app(EntryTypes::class)->get('product')?->getLabel());
+    }
+
+    public function test_a_new_type_may_link_to_itself(): void
+    {
+        $this->actingAsDeveloper();
+
+        Livewire::test(CreateContentType::class)
+            ->fillForm(['key' => 'topic', 'label' => 'Topic', 'sort' => 'title', 'fields' => [
+                ['label' => 'Parent', 'name' => 'parent', 'type' => 'entry', 'target' => 'topic'],
+            ]])
+            ->call('save')
+            ->assertHasNoFormErrors()
+            ->assertNotified('Saved. The new types are in the menu now.');
+
+        $this->assertSame('topic', StoredEntryTypes::definitions()[0]['fields'][0]['target']);
+    }
+
+    public function test_a_type_another_type_links_to_is_not_deleted(): void
+    {
+        $this->store([
+            self::product(['fields' => [['label' => 'Maker', 'name' => 'maker', 'type' => 'entry', 'target' => 'maker']]]),
+            ['key' => 'maker', 'label' => 'Maker', 'fields' => []],
+        ]);
+        $this->actingAsDeveloper();
+
+        Livewire::test(ListContentTypes::class)
+            ->callTableAction('delete', 'maker')
+            ->assertNotified('Product links to it (its Maker field). Change or remove that field first.');
+
+        $this->assertNotNull(app(EntryTypes::class)->get('maker'));
+    }
+
+    public function test_a_saved_type_that_no_longer_builds_is_listed_to_fix(): void
+    {
+        $this->store([self::product()]);
+        // A code type now takes its address, as at the next boot.
+        app(EntryTypes::class)->register(EntryType::make('faq')->label('FAQ')->path('/products')->fields([]));
+        app(EntryTypes::class)->flushStored();
+        $this->actingAsDeveloper();
+
+        $this->assertNull(app(EntryTypes::class)->get('product'));
+        Livewire::test(ListContentTypes::class)
+            ->assertCanSeeTableRecords(['product', 'faq'])
+            ->assertTableColumnStateSet('source', 'Needs a fix', 'product')
+            ->assertTableActionVisible('edit', 'product');
+
+        app(EntryTypes::class)->forget('faq');
+    }
+
+    public function test_a_client_can_not_open_or_use_the_create_page(): void
+    {
+        $this->actingAsClient();
+
+        Livewire::test(CreateContentType::class)->assertForbidden();
+        $this->store([self::product()]);
+        Livewire::test(EditContentType::class, ['type' => 'product'])->assertForbidden();
+        $this->assertSame(['product'], array_column(StoredEntryTypes::definitions(), 'key'));
     }
 
     public function test_a_type_that_still_has_entries_can_not_be_removed(): void
     {
-        $this->store([self::product()]);
+        $this->store([self::product(), self::product(['key' => 'event', 'label' => 'Event', 'path' => '/events'])]);
         app(EntryStore::class)->save(new Entry(['entry_type' => 'product']), ['title' => 'Blue pen', 'is_published' => true], null);
         $this->actingAsDeveloper();
 
-        Livewire::test(EditContentTypes::class)
-            ->fillForm(['types' => []])
-            ->call('save')
+        Livewire::test(ListContentTypes::class)
+            ->callTableAction('delete', 'product')
             ->assertNotified('Product still has 1 entries. Delete them first, or keep the type.');
 
+        Livewire::test(EditContentType::class, ['type' => 'event'])
+            ->callAction('delete')
+            ->assertRedirect(ListContentTypes::getUrl());
+
         $this->assertNotNull(app(EntryTypes::class)->get('product'));
+        $this->assertNull(app(EntryTypes::class)->get('event'));
     }
 
     public function test_bad_types_are_refused_with_the_reason(): void
@@ -116,20 +206,20 @@ class ContentTypesTest extends TestCase
         app(EntryTypes::class)->register(EntryType::make('faq')->label('FAQ')->path('/faq')->fields([Field::textarea('answer')]));
         $this->actingAsDeveloper();
 
-        $cases = [
-            'The key faq is already a type made in code.' => [self::product(['key' => 'faq'])],
-            'Two types use the key product.' => [self::product(), self::product(['path' => '/other'])],
-            'Two types use the address /faq.' => [self::product(['path' => '/faq'])],
-        ];
-
-        foreach ($cases as $message => $types) {
-            Livewire::test(EditContentTypes::class)->fillForm(['types' => $types])->call('save')->assertNotified($message);
+        foreach ([
+            'The key faq is already a type made in code.' => self::product(['key' => 'faq']),
+            'Two types use the address /faq.' => self::product(['path' => '/faq']),
+        ] as $message => $type) {
+            Livewire::test(CreateContentType::class)->fillForm($type)->call('save')->assertNotified($message);
         }
+
+        $this->store([self::product()]);
+        Livewire::test(CreateContentType::class)->fillForm(self::product(['path' => '/other']))->call('save')->assertNotified('Two types use the key product.');
 
         [, $problem] = StoredEntryTypes::clean([self::product(['path' => '/admin/things'])], []);
         $this->assertStringContainsString('cannot be the home page or start with', (string) $problem);
 
-        $this->assertNull(app(EntryTypes::class)->get('product'));
+        $this->assertSame(['product'], array_column(StoredEntryTypes::definitions(), 'key'));
         app(EntryTypes::class)->forget('faq');
     }
 
@@ -162,13 +252,14 @@ class ContentTypesTest extends TestCase
     {
         $this->actingAsClient();
 
-        $this->get(EditContentTypes::getUrl())->assertForbidden();
+        $this->get(ListContentTypes::getUrl())->assertForbidden();
+        $this->get(CreateContentType::getUrl())->assertForbidden();
     }
 
     public function test_a_developer_opens_the_screen_while_roles_are_off(): void
     {
         $this->actingAsDeveloper();
 
-        $this->get(EditContentTypes::getUrl())->assertOk()->assertSee('Add content type');
+        $this->get(ListContentTypes::getUrl())->assertOk()->assertSee('New content type');
     }
 }

@@ -13,6 +13,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
@@ -24,6 +25,7 @@ use Vortechron\FilamentCms\SectionLibrary;
  * The "Seksyen" screen: synced sections (one section many pages show) and
  * saved sections (templates in the builder's add panel). Both are made in
  * the page builder; here they are renamed, deleted, or built ("Bina"). The same people who may edit pages may open it.
+ * It shows in the menu only once one exists.
  */
 class SiteSectionResource extends Resource
 {
@@ -38,6 +40,23 @@ class SiteSectionResource extends Resource
     public static function canAccess(): bool
     {
         return parent::canAccess() && CmsAccess::allows('sections') && BuildSitePage::mayBuild(null);
+    }
+
+    /**
+     * In the menu only once a synced or saved section exists: they are made
+     * in the page builder, so an empty list here only puzzles the shop.
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        if (! parent::shouldRegisterNavigation() || ! static::canAccess()) {
+            return false;
+        }
+
+        try {
+            return static::getEloquentQuery()->exists();
+        } catch (QueryException) {
+            return false;
+        }
     }
 
     public static function getEloquentQuery(): Builder
@@ -72,6 +91,7 @@ class SiteSectionResource extends Resource
         return $table
             ->defaultSort('title')
             ->emptyStateHeading(__('filament-cms::sections.empty'))
+            ->emptyStateDescription(__('filament-cms::sections.empty_help'))
             ->columns([
                 TextColumn::make('title')->label(__('filament-cms::sections.title'))->searchable(),
                 TextColumn::make('kind')

@@ -9,7 +9,7 @@ use Vortechron\FilamentCms\Entries\EntryStore;
 use Vortechron\FilamentCms\Entries\EntryTypes;
 use Vortechron\FilamentCms\Entries\EntryValues;
 use Vortechron\FilamentCms\Entries\StoredEntryTypes;
-use Vortechron\FilamentCms\Filament\Pages\EditContentTypes;
+use Vortechron\FilamentCms\Filament\Pages\ContentTypes\CreateContentType;
 use Vortechron\FilamentCms\Filament\Resources\Entries\Pages\ManageEntries;
 use Vortechron\FilamentCms\Models\Entry;
 use Vortechron\FilamentCms\Tests\TestCase;
@@ -100,13 +100,15 @@ class EntryLinksTest extends TestCase
     public function test_the_content_types_screen_saves_a_link_field_with_the_type_it_links_to(): void
     {
         $this->actingAsDeveloper();
+        [$item, $category] = self::types();
 
-        Livewire::test(EditContentTypes::class)
-            ->fillForm(['types' => self::types()])
+        Livewire::test(CreateContentType::class)->fillForm($category)->call('save')->assertHasNoFormErrors();
+        Livewire::test(CreateContentType::class)
+            ->fillForm($item)
             ->call('save')
             ->assertNotified('Saved. The new types are in the menu now.');
 
-        $field = StoredEntryTypes::definitions()[0]['fields'][0];
+        $field = collect(StoredEntryTypes::definitions())->firstWhere('key', 'item')['fields'][0];
         $this->assertSame(['category', 'entry', 'item-category'], [$field['name'], $field['type'], $field['target']]);
     }
 
@@ -115,10 +117,10 @@ class EntryLinksTest extends TestCase
         [, $problem] = StoredEntryTypes::clean(self::types('ghost'), []);
         $this->assertSame('The Category field of Item must link to one of the content types.', $problem);
 
-        // The screen offers only the types it shows, so it refuses one too.
+        // The screen offers only saved types, so it refuses one too.
         $this->actingAsDeveloper();
-        Livewire::test(EditContentTypes::class)
-            ->fillForm(['types' => self::types('ghost')])
+        Livewire::test(CreateContentType::class)
+            ->fillForm(self::types('ghost')[0])
             ->call('save')
             ->assertHasFormErrors();
 

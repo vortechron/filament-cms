@@ -31,7 +31,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.9
+composer require vortechron/filament-cms:^0.10
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -148,7 +148,8 @@ kind `kit`. `<x-filament-block-editor::styles />` prints it, and `cms_kit()` ret
 In the builder a section can be **made synced** (one section many pages show: edit it once, every page changes)
 or **saved as a template** (a copy in the add panel). The **Seksyen** screen lists both, with rename, delete and
 "Bina" (a saved section is built as one section, like a synced one). Deleting a synced section names the pages that
-show it; after that they draw nothing in its place. Turn it off with `->sections(false)`.
+show it; after that they draw nothing in its place. The screen is in the menu only once one exists; its empty list
+says how to make one. Turn it off with `->sections(false)`.
 
 ### Shop info in the builder
 
@@ -349,7 +350,8 @@ app(EntryStore::class)->save(new Entry(['entry_type' => 'product']), [
 ### Content types made in the panel
 
 A developer (with roles on: the super admin) adds types on **Content types** (`/admin/content-types`) instead of in
-code: a key (fixed once saved), a name and plural name, an address for the entries' pages (or none), the order, an
+code. The screen lists every type (name, key, address, fields, entries; code types marked and read-only); tap one to
+edit it on its own page (`/admin/content-types/{key}/edit`, with Delete), or "New content type". Each type has: a key (fixed once saved), a name and plural name, an address for the entries' pages (or none), the order, an
 icon, a page body or not, and fields (short text, long text, number, choice with one option per line, yes or no,
 link, picture). Saving gives the type its screen under Content, the "Entry list" block and its pages at once: no
 migration, no deploy. `StoredEntryTypes` keeps them as one content key (`entry-types`) in `cms_contents`, with its

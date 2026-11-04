@@ -2,11 +2,13 @@
 
 namespace Vortechron\FilamentCms\Entries;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentCms\ContentStore;
 use Vortechron\FilamentCms\Models\CmsContent;
 use Vortechron\FilamentCms\Models\Entry;
 
@@ -121,6 +123,70 @@ final class StoredEntryTypes
         }
 
         return $type;
+    }
+
+    /**
+     * Saves one type from the screen: a new one goes last, a saved one
+     * (`$savedKey`) keeps its place and its key. Checked with the others
+     * (clean()); answers the problem in words, or null once saved.
+     *
+     * @param  array<string, mixed>  $item  the screen's form state
+     * @param  array<string, EntryType>  $codeTypes
+     */
+    public static function put(array $item, ?string $savedKey, array $codeTypes, ?Authenticatable $user): ?string
+    {
+        $items = self::definitions();
+        $index = $savedKey === null ? false : array_search($savedKey, array_column($items, 'key'), true);
+
+        if ($savedKey !== null && $index === false) {
+            return __('filament-cms::types.gone');
+        }
+
+        if ($index === false) {
+            $items[] = $item;
+        } else {
+            $items[$index] = [...$item, 'key' => $savedKey];
+        }
+
+        return self::store($items, $codeTypes, $user);
+    }
+
+    /**
+     * Removes one type; refused while it still has entries (clean()).
+     *
+     * @param  array<string, EntryType>  $codeTypes
+     */
+    public static function remove(string $key, array $codeTypes, ?Authenticatable $user): ?string
+    {
+        $items = array_values(array_filter(self::definitions(), fn (array $item): bool => ($item['key'] ?? null) !== $key));
+
+        foreach ($items as $item) {
+            foreach (is_array($item['fields'] ?? null) ? $item['fields'] : [] as $field) {
+                if (($field['type'] ?? null) === 'entry' && ($field['target'] ?? null) === $key) {
+                    return __('filament-cms::types.linked_from', ['type' => (string) ($item['label'] ?? $item['key'] ?? ''), 'field' => (string) ($field['label'] ?? $field['name'] ?? '')]);
+                }
+            }
+        }
+
+        return self::store($items, $codeTypes, $user);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     * @param  array<string, EntryType>  $codeTypes
+     */
+    private static function store(array $items, array $codeTypes, ?Authenticatable $user): ?string
+    {
+        [$definitions, $problem] = self::clean($items, $codeTypes);
+
+        if ($problem !== null) {
+            return $problem;
+        }
+
+        app(ContentStore::class)->save(self::KEY, ['types' => $definitions], $user);
+        app(EntryTypes::class)->flushStored();
+
+        return null;
     }
 
     /**

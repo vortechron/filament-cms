@@ -46,6 +46,18 @@ class SectionsScreenTest extends TestCase
             ->assertSee(['Segerak', 'Templat']);
     }
 
+    public function test_the_menu_shows_sections_only_once_there_is_one(): void
+    {
+        $this->actingAsClient();
+
+        $this->assertFalse(SiteSectionResource::shouldRegisterNavigation());
+        $this->get(SiteSectionResource::getUrl())->assertOk()->assertSee('Jadikan segerak');
+
+        $this->saved(Document::TEMPLATE, 'Kotak harga');
+
+        $this->assertTrue(SiteSectionResource::shouldRegisterNavigation());
+    }
+
     public function test_synced_and_saved_sections_both_have_bina(): void
     {
         $synced = $this->saved(Document::SECTION, 'Promosi');

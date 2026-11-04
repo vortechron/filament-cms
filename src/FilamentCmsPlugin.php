@@ -7,8 +7,10 @@ use Filament\Contracts\Plugin;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Vortechron\FilamentCms\Access\CmsRoles;
+use Vortechron\FilamentCms\Filament\Pages\ContentTypes\CreateContentType;
+use Vortechron\FilamentCms\Filament\Pages\ContentTypes\EditContentType;
+use Vortechron\FilamentCms\Filament\Pages\ContentTypes\ListContentTypes;
 use Vortechron\FilamentCms\Filament\Pages\EditContent;
-use Vortechron\FilamentCms\Filament\Pages\EditContentTypes;
 use Vortechron\FilamentCms\Filament\Pages\EditSettings;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
 use Vortechron\FilamentCms\Filament\Resources\FormSubmissions\FormSubmissionResource;
@@ -202,7 +204,7 @@ class FilamentCmsPlugin implements Plugin
 
         if ($this->hasEntries) {
             $panel->resources([EntryResource::class]);
-            $panel->pages([EditContentTypes::class]);
+            $panel->pages([ListContentTypes::class, CreateContentType::class, EditContentType::class]);
         }
 
         // Always there, so ->roles() can be switched on later; closed while roles are off.
