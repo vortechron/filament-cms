@@ -24,6 +24,10 @@ and how to use it: `README.md`. Why the design is shaped this way: `docs/v2-devi
 - Every panel word has English (`resources/lang/en`) and Malay (`resources/lang/ms`). Our clients see the panel in
   English (`APP_LOCALE=en`) and the site in Malay (`SITE_LOCALE=ms`). Words a visitor sees follow the site's
   language; words for the owner (the panel, the form email) follow the panel's (`ContentLocale::panel()`).
+- Roles are Spatie's, on with `->roles()`: one permission per screen (`Access\CmsRoles`), `super_admin` is Vortechron
+  and the developer, `admin` is the client. Gate a new screen with `CmsAccess::allows('<screen>')` and add its
+  permission to `CmsRoles::PERMISSIONS` (and to `SUPER_ADMIN_ONLY` if the client should not get it).
+- Content types can be made in code (`EntryType`) or in the panel (`StoredEntryTypes`); both go through `EntryTypes`.
 - The page limit (`max_pages`, `PageLimit`) defaults to no limit here. Each client sets its package's number in its
   own `config/filament-cms.php` (Website Starter: `env('CMS_MAX_PAGES', 5)`).
 - Local PHP is `php84`. Use `/opt/homebrew/bin/composer`; the Herd composer path has a space in it.

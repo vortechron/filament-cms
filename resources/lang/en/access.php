@@ -1,0 +1,36 @@
+<?php
+
+return [
+    'group' => 'Access',
+    'users' => 'Users',
+    'user' => 'user',
+    'name' => 'Name',
+    'email' => 'Email',
+    'password' => 'Password',
+    'password_help' => 'Leave it empty to keep the current password.',
+    'role' => 'Role',
+    'own_role' => 'You can not change your own role.',
+    'added' => 'Added',
+    'roles' => 'Roles',
+    'role_model' => 'role',
+    'role_name' => 'Name',
+    'role_name_help' => 'Lowercase letters, digits and underscores, like staff.',
+    'permissions' => 'Screens this role opens',
+    'screens' => 'Screens',
+    'all_screens' => 'All, always',
+    'people' => 'People',
+    'role_labels' => [
+        'super_admin' => 'Super admin',
+        'admin' => 'Admin',
+    ],
+    'permission_labels' => [
+        'cms.pages' => 'Pages and the builder',
+        'cms.sections' => 'Sections',
+        'cms.forms' => 'Form submissions',
+        'cms.entries' => 'Entries',
+        'cms.settings' => 'Settings',
+        'cms.users' => 'Users',
+        'cms.roles' => 'Roles',
+        'cms.types' => 'Content types',
+    ],
+];

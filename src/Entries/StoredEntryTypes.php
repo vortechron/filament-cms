@@ -1,0 +1,232 @@
+<?php
+
+namespace Vortechron\FilamentCms\Entries;
+
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use InvalidArgumentException;
+use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentCms\Models\CmsContent;
+use Vortechron\FilamentCms\Models\Entry;
+
+/**
+ * Entry types made in the panel (the Content types screen) instead of in
+ * code: no migration and no deploy for a new one. They are kept as one
+ * content key in `cms_contents` (with its versions in `cms_revisions`),
+ * and EntryTypes serves them next to the code types, which win on the
+ * same key or path.
+ *
+ * One stored type:
+ *
+ *     ['key' => 'product', 'label' => 'Product', 'plural_label' => 'Products',
+ *      'icon' => 'heroicon-o-cube', 'path' => '/products', 'body' => false, 'sort' => 'newest',
+ *      'fields' => [['name' => 'price', 'label' => 'Price', 'type' => 'number', 'options' => '']]]
+ */
+final class StoredEntryTypes
+{
+    public const KEY = 'entry-types';
+
+    /**
+     * The field kinds the screen offers.
+     */
+    public const FIELD_TYPES = ['text', 'textarea', 'number', 'select', 'toggle', 'link', 'image'];
+
+    /**
+     * The icons the screen offers.
+     */
+    public const ICONS = [
+        'heroicon-o-rectangle-stack', 'heroicon-o-cube', 'heroicon-o-shopping-bag', 'heroicon-o-tag',
+        'heroicon-o-calendar-days', 'heroicon-o-newspaper', 'heroicon-o-photo', 'heroicon-o-user-group',
+        'heroicon-o-map-pin', 'heroicon-o-question-mark-circle', 'heroicon-o-star', 'heroicon-o-wrench-screwdriver',
+    ];
+
+    /**
+     * The saved definitions, as stored; none while the table is missing.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function definitions(): array
+    {
+        try {
+            $content = CmsContent::query()->where('key', self::KEY)->value('content');
+        } catch (QueryException) {
+            return [];
+        }
+
+        $content = is_string($content) ? json_decode($content, true) : $content;
+        $types = is_array($content) && is_array($content['types'] ?? null) ? $content['types'] : [];
+
+        return array_values(array_filter($types, 'is_array'));
+    }
+
+    /**
+     * Every saved type that still builds, by key. One that no longer does
+     * (a path the site now uses) is left out and logged.
+     *
+     * @return array<string, EntryType>
+     */
+    public static function load(): array
+    {
+        $types = [];
+
+        foreach (self::definitions() as $definition) {
+            try {
+                $type = self::build($definition);
+                $types[$type->key] = $type;
+            } catch (InvalidArgumentException $exception) {
+                Log::warning('A stored entry type was skipped: '.$exception->getMessage());
+            }
+        }
+
+        return $types;
+    }
+
+    /**
+     * @param  array<string, mixed>  $definition
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function build(array $definition): EntryType
+    {
+        $type = EntryType::make((string) ($definition['key'] ?? ''))
+            ->label((string) ($definition['label'] ?? ''))
+            ->icon(is_string($definition['icon'] ?? null) && $definition['icon'] !== '' ? $definition['icon'] : null)
+            ->fields(array_map(self::field(...), is_array($definition['fields'] ?? null) ? array_values($definition['fields']) : []))
+            ->path(is_string($definition['path'] ?? null) && trim($definition['path']) !== '' ? $definition['path'] : null)
+            ->body((bool) ($definition['body'] ?? false))
+            ->sort((string) ($definition['sort'] ?? 'newest'));
+
+        if (is_string($definition['plural_label'] ?? null) && trim($definition['plural_label']) !== '') {
+            $type->pluralLabel(trim($definition['plural_label']));
+        }
+
+        return $type;
+    }
+
+    /**
+     * The screen's items made into definitions, checked: either the
+     * definitions or the first problem, in words for the screen.
+     *
+     * @param  array<mixed>  $items  the form's repeater items
+     * @param  array<string, EntryType>  $codeTypes  the types made in code
+     * @return array{0: list<array<string, mixed>>, 1: ?string}
+     */
+    public static function clean(array $items, array $codeTypes): array
+    {
+        $definitions = [];
+        $paths = array_filter(array_map(fn (EntryType $type): ?string => $type->getPath(), $codeTypes));
+
+        foreach (array_values(array_filter($items, 'is_array')) as $item) {
+            $definition = self::definition($item);
+            $key = $definition['key'];
+
+            if (isset($definitions[$key])) {
+                return [[], __('filament-cms::types.duplicate', ['key' => $key])];
+            }
+
+            if (isset($codeTypes[$key])) {
+                return [[], __('filament-cms::types.code_type', ['key' => $key])];
+            }
+
+            try {
+                $type = self::build($definition);
+            } catch (InvalidArgumentException $exception) {
+                return [[], __('filament-cms::types.invalid', ['type' => $definition['label'] !== '' ? $definition['label'] : $key, 'error' => $exception->getMessage()])];
+            }
+
+            if ($type->getPath() !== null && in_array($type->getPath(), $paths, true)) {
+                return [[], __('filament-cms::types.path_taken', ['path' => $type->getPath()])];
+            }
+
+            $paths[] = $type->getPath();
+            $definition['path'] = $type->getPath();
+            $definitions[$key] = $definition;
+        }
+
+        foreach (self::definitions() as $old) {
+            $key = (string) ($old['key'] ?? '');
+            $count = isset($definitions[$key]) ? 0 : Entry::query()->where('entry_type', $key)->count();
+
+            if ($count > 0) {
+                return [[], __('filament-cms::types.has_entries', ['type' => (string) ($old['label'] ?? $key), 'count' => $count])];
+            }
+        }
+
+        return [array_values($definitions), null];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private static function definition(array $item): array
+    {
+        $fields = [];
+
+        foreach (array_values(array_filter(is_array($item['fields'] ?? null) ? $item['fields'] : [], 'is_array')) as $field) {
+            $type = in_array($field['type'] ?? null, self::FIELD_TYPES, true) ? $field['type'] : 'text';
+            $fields[] = [
+                'name' => Str::lower(trim((string) ($field['name'] ?? ''))),
+                'label' => trim((string) ($field['label'] ?? '')),
+                'type' => $type,
+                'options' => $type === 'select' ? trim((string) ($field['options'] ?? '')) : '',
+            ];
+        }
+
+        return [
+            'key' => Str::lower(trim((string) ($item['key'] ?? ''))),
+            'label' => trim((string) ($item['label'] ?? '')),
+            'plural_label' => trim((string) ($item['plural_label'] ?? '')),
+            'icon' => in_array($item['icon'] ?? null, self::ICONS, true) ? $item['icon'] : self::ICONS[0],
+            'path' => trim((string) ($item['path'] ?? '')),
+            'body' => (bool) ($item['body'] ?? false),
+            'sort' => in_array($item['sort'] ?? null, EntryType::SORTS, true) ? $item['sort'] : 'newest',
+            'fields' => $fields,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $field
+     */
+    private static function field(array $field): Field
+    {
+        $name = (string) ($field['name'] ?? '');
+
+        $made = match ($field['type'] ?? 'text') {
+            'text' => Field::text($name),
+            'textarea' => Field::textarea($name),
+            'number' => Field::number($name),
+            'select' => Field::select($name)->options(self::options((string) ($field['options'] ?? ''))),
+            'toggle' => Field::toggle($name),
+            'link' => Field::link($name),
+            'image' => Field::image($name),
+            default => throw new InvalidArgumentException('An entry field is one of '.implode(', ', self::FIELD_TYPES).". Got [{$field['type']}]."),
+        };
+
+        $label = trim((string) ($field['label'] ?? ''));
+
+        return $label === '' ? $made : $made->label($label);
+    }
+
+    /**
+     * A select field's choices: one per line, stored under its slug.
+     *
+     * @return array<string, string>
+     */
+    public static function options(string $lines): array
+    {
+        $options = [];
+
+        foreach (preg_split('/\R/', $lines) ?: [] as $line) {
+            $line = trim($line);
+            $value = Str::slug($line, '_');
+
+            if ($line !== '' && $value !== '' && ! isset($options[$value])) {
+                $options[$value] = $line;
+            }
+        }
+
+        return $options;
+    }
+}

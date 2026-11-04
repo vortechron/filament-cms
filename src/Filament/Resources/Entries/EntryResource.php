@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Filament\Resources\Entries;
 use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
+use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Entries\EntryTypes;
 use Vortechron\FilamentCms\Filament\Resources\Entries\Pages\ManageEntries;
@@ -24,6 +25,11 @@ class EntryResource extends Resource
     protected static ?string $slug = 'entries';
 
     protected static ?int $navigationSort = -8;
+
+    public static function canAccess(): bool
+    {
+        return parent::canAccess() && CmsAccess::allows('entries');
+    }
 
     public static function getNavigationGroup(): ?string
     {

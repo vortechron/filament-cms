@@ -17,6 +17,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Filament\Resources\FormSubmissions\Pages\ListFormSubmissions;
 use Vortechron\FilamentCms\Filament\Resources\FormSubmissions\Pages\ViewFormSubmission;
 use Vortechron\FilamentCms\Forms\SubmissionRows;
@@ -42,6 +43,11 @@ class FormSubmissionResource extends Resource
      * owner lands on Halaman after login.
      */
     protected static ?int $navigationSort = 99;
+
+    public static function canAccess(): bool
+    {
+        return parent::canAccess() && CmsAccess::allows('forms');
+    }
 
     public static function getNavigationGroup(): ?string
     {

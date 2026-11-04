@@ -20,6 +20,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
+use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\ManageSitePages;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
@@ -39,6 +40,11 @@ class SitePageResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleGroup;
 
     protected static ?int $navigationSort = -10;
+
+    public static function canAccess(): bool
+    {
+        return parent::canAccess() && CmsAccess::allows('pages');
+    }
 
     public static function getNavigationGroup(): ?string
     {

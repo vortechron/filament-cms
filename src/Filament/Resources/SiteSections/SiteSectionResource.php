@@ -13,6 +13,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\Filament\Resources\SiteSections\Pages\ManageSiteSections;
@@ -36,7 +37,7 @@ class SiteSectionResource extends Resource
 
     public static function canAccess(): bool
     {
-        return parent::canAccess() && BuildSitePage::mayBuild(null);
+        return parent::canAccess() && CmsAccess::allows('sections') && BuildSitePage::mayBuild(null);
     }
 
     public static function getEloquentQuery(): Builder

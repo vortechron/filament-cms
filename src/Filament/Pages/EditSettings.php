@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Filament\Pages;
 use BackedEnum;
 use Filament\Navigation\NavigationItem;
 use Filament\Support\Icons\Heroicon;
+use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Cms;
 
 /**
@@ -19,6 +20,11 @@ class EditSettings extends EditContent
     /**
      * @return array<NavigationItem>
      */
+    public static function canAccess(): bool
+    {
+        return CmsAccess::allows('settings');
+    }
+
     public static function getNavigationItems(): array
     {
         return [

@@ -1,0 +1,36 @@
+<?php
+
+return [
+    'group' => 'Akses',
+    'users' => 'Pengguna',
+    'user' => 'pengguna',
+    'name' => 'Nama',
+    'email' => 'E-mel',
+    'password' => 'Kata laluan',
+    'password_help' => 'Biarkan kosong untuk kekalkan kata laluan sekarang.',
+    'role' => 'Peranan',
+    'own_role' => 'Anda tidak boleh tukar peranan anda sendiri.',
+    'added' => 'Ditambah',
+    'roles' => 'Peranan',
+    'role_model' => 'peranan',
+    'role_name' => 'Nama',
+    'role_name_help' => 'Huruf kecil, nombor dan garis bawah, contohnya staff.',
+    'permissions' => 'Skrin yang peranan ini boleh buka',
+    'screens' => 'Skrin',
+    'all_screens' => 'Semua, sentiasa',
+    'people' => 'Orang',
+    'role_labels' => [
+        'super_admin' => 'Super admin',
+        'admin' => 'Admin',
+    ],
+    'permission_labels' => [
+        'cms.pages' => 'Halaman dan pembina',
+        'cms.sections' => 'Seksyen',
+        'cms.forms' => 'Borang',
+        'cms.entries' => 'Entri',
+        'cms.settings' => 'Tetapan',
+        'cms.users' => 'Pengguna',
+        'cms.roles' => 'Peranan',
+        'cms.types' => 'Jenis kandungan',
+    ],
+];

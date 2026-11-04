@@ -31,7 +31,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.7
+composer require vortechron/filament-cms:^0.8
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -345,6 +345,40 @@ app(EntryStore::class)->save(new Entry(['entry_type' => 'product']), [
     'fields' => ['price' => 'RM 12', 'photo' => 'https://example.com/kopi.jpg'],
 ], $user);   // ['ok' => true] or ['ok' => false, 'errors' => [...]]
 ```
+
+### Content types made in the panel
+
+A developer (with roles on: the super admin) adds types on **Content types** (`/admin/content-types`) instead of in
+code: a key (fixed once saved), a name and plural name, an address for the entries' pages (or none), the order, an
+icon, a page body or not, and fields (short text, long text, number, choice with one option per line, yes or no,
+link, picture). Saving gives the type its screen under Content, the "Entry list" block and its pages at once: no
+migration, no deploy. `StoredEntryTypes` keeps them as one content key (`entry-types`) in `cms_contents`, with its
+versions; `EntryTypes` serves them next to the code types, and a code type wins on the same key or path. A type
+that still has entries is not removed, and a removed field leaves its values in the entries, unseen.
+
+## Roles and permissions
+
+`FilamentCmsPlugin::make()->roles()` turns on [spatie/laravel-permission](https://spatie.be/docs/laravel-permission):
+
+- One permission per screen (`Access\CmsRoles::PERMISSIONS`): `cms.pages` (Pages and the builder), `cms.sections`,
+  `cms.forms`, `cms.entries`, `cms.settings`, `cms.users`, `cms.roles`, `cms.types` (Content types).
+- `super_admin` (Vortechron) always holds every one and counts as a developer. `admin` (the client) starts with all
+  but `cms.roles` and `cms.types`. More roles ("staff") are made on the **Roles** screen.
+- **Users** (`cms.users`): name, email, password, one role. Nobody but a super admin sees, makes or edits a super
+  admin; nobody changes their own role or deletes themselves.
+- `CmsRoles::sync()` makes what is missing and keeps the owner's changes. The plugin runs it on a panel visit when a
+  permission is missing, so a release with a new screen needs no step.
+
+The app needs Spatie's tables and the `HasRoles` trait on its user model:
+
+```bash
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+php artisan migrate
+```
+
+Give the first roles in a migration: call `CmsRoles::sync()`, then `$user->assignRole(CmsRoles::SUPER_ADMIN)`.
+Without `->roles()`, every signed-in user opens the content screens, Users and Roles stay closed, and only a
+developer (`->developers()`) opens Content types.
 
 ## MCP: let an AI agent edit the site
 

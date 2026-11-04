@@ -61,5 +61,9 @@ class FilamentCmsServiceProvider extends PackageServiceProvider
 
         // site.* and page.* values; each one reads the settings when drawn.
         $this->callAfterResolving(DynamicValues::class, SiteValues::register(...));
+
+        // Types made in the panel, read once the app is up, so the list block
+        // is there for the builder and the pages that use it.
+        $this->app->booted(fn () => $this->app->make(EntryTypes::class)->all());
     }
 }

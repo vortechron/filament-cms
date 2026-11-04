@@ -22,6 +22,7 @@ use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\Concerns\WithWorkbench;
 use Orchestra\Testbench\TestCase as Orchestra;
 use RyanChandler\BladeCaptureDirective\BladeCaptureDirectiveServiceProvider;
+use Spatie\Permission\PermissionServiceProvider;
 use Vortechron\FilamentBlockEditor\FilamentBlockEditorServiceProvider;
 use Vortechron\FilamentCms\FilamentCmsServiceProvider;
 use Workbench\App\Cms\HomePage;
@@ -53,6 +54,7 @@ abstract class TestCase extends Orchestra
             LivewireServiceProvider::class,
             McpServiceProvider::class,
             NotificationsServiceProvider::class,
+            PermissionServiceProvider::class,
             PowerJoinsServiceProvider::class,
             QueryBuilderServiceProvider::class,
             SchemasServiceProvider::class,

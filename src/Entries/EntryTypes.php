@@ -11,7 +11,10 @@ use Vortechron\FilamentBlockEditor\Blocks\BlockRegistry;
  *
  *     app(EntryTypes::class)->register(EntryType::make('product')->path('/produk'));
  *
- * While at least one type is registered, the page builder offers the
+ * Types made in the panel (StoredEntryTypes) are served next to them; a
+ * code type wins on the same key or path.
+ *
+ * While at least one type exists, the page builder offers the
  * "cms-entries" list block (EntryList).
  */
 final class EntryTypes
@@ -20,6 +23,13 @@ final class EntryTypes
      * @var array<string, EntryType>
      */
     private array $types = [];
+
+    /**
+     * The panel's types, read once a request; null until first asked.
+     *
+     * @var array<string, EntryType>|null
+     */
+    private ?array $stored = null;
 
     /**
      * Adds a type, or replaces the one with the same key.
@@ -50,19 +60,61 @@ final class EntryTypes
 
     public function has(?string $key): bool
     {
-        return $key !== null && isset($this->types[$key]);
+        return $this->get($key) !== null;
     }
 
     public function get(?string $key): ?EntryType
     {
-        return $key === null ? null : ($this->types[$key] ?? null);
+        return $key === null ? null : ($this->types[$key] ?? $this->stored()[$key] ?? null);
+    }
+
+    /**
+     * The panel's types first, then the code's.
+     *
+     * @return array<string, EntryType>
+     */
+    public function all(): array
+    {
+        return [...$this->stored(), ...$this->types];
+    }
+
+    /**
+     * Only the types registered in code.
+     *
+     * @return array<string, EntryType>
+     */
+    public function inCode(): array
+    {
+        return $this->types;
+    }
+
+    /**
+     * Reads the panel's types again, after the Content types screen saves.
+     */
+    public function flushStored(): void
+    {
+        $this->stored = null;
+        $this->stored();
     }
 
     /**
      * @return array<string, EntryType>
      */
-    public function all(): array
+    private function stored(): array
     {
-        return $this->types;
+        if ($this->stored === null) {
+            // Set first: registering the list block below asks for all().
+            $this->stored = [];
+            $paths = array_filter(array_map(fn (EntryType $type): ?string => $type->getPath(), $this->types));
+
+            $this->stored = array_filter(
+                StoredEntryTypes::load(),
+                fn (EntryType $type): bool => ! isset($this->types[$type->key]) && ! in_array($type->getPath(), $paths, true),
+            );
+
+            EntryList::register(app(BlockRegistry::class), $this);
+        }
+
+        return $this->stored;
     }
 }

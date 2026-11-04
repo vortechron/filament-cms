@@ -15,6 +15,7 @@ use Filament\Schemas\Components\Form;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Livewire\Attributes\Locked;
+use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Cms;
 use Vortechron\FilamentCms\CmsPage;
 use Vortechron\FilamentCms\ContentForm;
@@ -54,6 +55,11 @@ class EditContent extends Page
     public function getTitle(): string
     {
         return $this->definition()::label();
+    }
+
+    public static function canAccess(): bool
+    {
+        return parent::canAccess() && CmsAccess::allows('pages');
     }
 
     public static function getNavigationGroup(): ?string
