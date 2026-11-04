@@ -212,6 +212,21 @@ class BuilderKindsTest extends TestCase
         $this->assertSame(BuildSitePage::getUrl(['record' => 'header']), $parts[0]['editUrl']);
     }
 
+    public function test_links_can_point_at_the_published_pages_home_first_then_in_menu_order(): void
+    {
+        $this->actingAsClient();
+        $home = $this->home();
+        SitePage::query()->create(['title' => 'Hubungi', 'path' => '/hubungi', 'is_published' => true, 'sections' => []]);
+        SitePage::query()->create(['title' => 'Draf', 'path' => '/draf', 'is_published' => false, 'sections' => []]);
+        SitePage::query()->create(['title' => 'Stationery', 'path' => '/stationery', 'is_published' => true, 'sections' => []]);
+
+        $this->assertSame([
+            ['title' => $home->title, 'url' => '/'],
+            ['title' => 'Hubungi', 'url' => '/hubungi'],
+            ['title' => 'Stationery', 'url' => '/stationery'],
+        ], $this->builderOptions($home)['pages']);
+    }
+
     public function test_the_design_kit_is_shown_and_saved_through_the_store(): void
     {
         $this->actingAsClient();

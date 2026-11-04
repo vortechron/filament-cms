@@ -246,6 +246,24 @@ class BuildSitePage extends Page
         ], CmsKind::parts());
     }
 
+    /**
+     * The published pages a link can point to: the home page first, then
+     * the others in menu order (sort, then the order they were made).
+     *
+     * @return list<array{title: string, url: string}>
+     */
+    protected function getPageBuilderPages(): array
+    {
+        return SitePage::query()
+            ->published()
+            ->orderByRaw("path = '/' desc")
+            ->orderBy('sort')
+            ->orderBy('id')
+            ->get(['title', 'path'])
+            ->map(fn (SitePage $page): array => ['title' => (string) $page->title, 'url' => $page->path])
+            ->all();
+    }
+
     protected function getPageBuilderSiteInfo(): ?array
     {
         return $this->plugin()->hasParts() ? app(SiteInfo::class)->forBuilder() : null;

@@ -26,7 +26,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.5
+composer require vortechron/filament-cms:^0.6
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -55,6 +55,8 @@ The **Halaman** screen lists the client's pages. Each page has a title, an addre
 `/about`, ...) and its content, built full screen in the page builder from
 [`vortechron/filament-block-editor`](https://github.com/vortechron/filament-block-editor) (the "Bina" button).
 Saving puts the content live, keeps the newest 20 versions, and developers can restore one from the table.
+Link fields in the builder ("Halaman dan pautan") offer the published pages, the home page first, so the client
+picks a page instead of typing its address.
 
 Show the pages on the site by calling this last in `routes/web.php`:
 
