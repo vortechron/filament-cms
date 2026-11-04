@@ -102,9 +102,10 @@ class EditContentTypes extends Page
                             ->helperText(__('filament-cms::types.key_help'))
                             ->required()->maxLength(40)->regex('/^[a-z][a-z0-9-]*$/')
                             ->disabled(fn (Get $get): bool => filled($get('saved_key')))
-                            ->dehydrated(),
-                        TextInput::make('label')->label(__('filament-cms::types.label'))->required()->maxLength(60),
-                        TextInput::make('plural_label')->label(__('filament-cms::types.plural_label'))->maxLength(60),
+                            ->dehydrated()
+                            ->live(onBlur: true),
+                        TextInput::make('label')->label(__('filament-cms::types.label'))->required()->maxLength(60)->live(onBlur: true),
+                        TextInput::make('plural_label')->label(__('filament-cms::types.plural_label'))->maxLength(60)->live(onBlur: true),
                         TextInput::make('path')->label(__('filament-cms::types.path'))
                             ->helperText(__('filament-cms::types.path_help'))
                             ->placeholder('/products')->maxLength(120),
@@ -149,10 +150,43 @@ class EditContentTypes extends Page
                                 Textarea::make('options')->label(__('filament-cms::types.field_options'))
                                     ->rows(3)->columnSpanFull()
                                     ->visible(fn (Get $get): bool => $get('type') === 'select'),
+                                // The types on the screen, saved or not, and the code's.
+                                Select::make('target')->label(__('filament-cms::types.field_target'))
+                                    ->helperText(__('filament-cms::types.field_target_help'))
+                                    ->options(fn (Get $get): array => self::linkTargets($get('../../../../types'), $codeTypes))
+                                    ->required(fn (Get $get): bool => $get('type') === 'entry')
+                                    ->visible(fn (Get $get): bool => $get('type') === 'entry'),
                             ]),
                     ]),
             ])
             ->statePath('data');
+    }
+
+    /**
+     * What a link field may link to: every type on the screen, then the
+     * code's, by key.
+     *
+     * @param  array<string, EntryType>  $codeTypes
+     * @return array<string, string>
+     */
+    private static function linkTargets(mixed $types, array $codeTypes): array
+    {
+        $targets = [];
+
+        foreach (is_array($types) ? $types : [] as $type) {
+            $key = is_array($type) ? Str::lower(trim((string) ($type['key'] ?? ''))) : '';
+
+            if ($key !== '') {
+                $name = trim((string) ($type['plural_label'] ?? '')) ?: trim((string) ($type['label'] ?? ''));
+                $targets[$key] = $name !== '' ? $name : $key;
+            }
+        }
+
+        foreach ($codeTypes as $key => $type) {
+            $targets[$key] = $type->getPluralLabel();
+        }
+
+        return $targets;
     }
 
     public function content(Schema $schema): Schema

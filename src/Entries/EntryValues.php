@@ -103,7 +103,7 @@ final class EntryValues
     {
         foreach ($field['options'] ?? [] as $option) {
             if ($option['value'] === $value) {
-                return $option['label'];
+                return $option['label'] !== '' ? $option['label'] : null;
             }
         }
 

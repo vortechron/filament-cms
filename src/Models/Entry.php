@@ -21,6 +21,8 @@ class Entry extends Document
     {
         static::addGlobalScope('kind', fn (Builder $query) => $query->where($query->qualifyColumn('kind'), self::ENTRY));
         static::creating(fn (Entry $entry) => $entry->kind = self::ENTRY);
+        static::saved(fn () => app(EntryTypes::class)->entriesChanged());
+        static::deleted(fn () => app(EntryTypes::class)->entriesChanged());
     }
 
     /**

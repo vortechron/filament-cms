@@ -2,6 +2,7 @@
 
 namespace Vortechron\FilamentCms\Tests\Feature;
 
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 use Vortechron\FilamentBlockEditor\Blocks\BlockRegistry;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
@@ -142,6 +143,19 @@ class ContentTypesTest extends TestCase
 
         app(EntryTypes::class)->forget('product');
         $this->assertSame('Stored', app(EntryTypes::class)->get('product')?->getLabel());
+    }
+
+    public function test_types_are_read_again_when_the_database_could_not_be_read_at_first(): void
+    {
+        $this->store([self::product()]);
+        Schema::rename('cms_contents', 'cms_contents_away');
+        app(EntryTypes::class)->flushStored();
+
+        $this->assertNull(app(EntryTypes::class)->get('product'));
+
+        Schema::rename('cms_contents_away', 'cms_contents');
+
+        $this->assertNotNull(app(EntryTypes::class)->get('product'));
     }
 
     public function test_a_client_does_not_open_the_screen_while_roles_are_off(): void

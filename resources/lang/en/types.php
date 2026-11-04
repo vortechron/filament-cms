@@ -21,6 +21,8 @@ return [
     'field_name_help' => 'Lowercase letters, digits and underscores.',
     'field_type' => 'Kind',
     'field_options' => 'Choices, one per line',
+    'field_target' => 'Links to',
+    'field_target_help' => 'Each entry picks one entry of this type, like an item picks its category.',
     'field_types' => [
         'text' => 'Short text',
         'textarea' => 'Long text',
@@ -29,11 +31,13 @@ return [
         'toggle' => 'Yes or no',
         'link' => 'Link',
         'image' => 'Picture',
+        'entry' => 'Link to an entry',
     ],
     'saved' => 'Saved. The new types are in the menu now.',
     'duplicate' => 'Two types use the key :key.',
     'code_type' => 'The key :key is already a type made in code.',
     'invalid' => ':type: :error',
     'path_taken' => 'Two types use the address :path.',
+    'link_target' => 'The :field field of :type must link to one of the content types.',
     'has_entries' => ':type still has :count entries. Delete them first, or keep the type.',
 ];

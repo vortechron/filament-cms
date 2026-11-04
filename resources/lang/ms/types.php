@@ -21,6 +21,8 @@ return [
     'field_name_help' => 'Huruf kecil, nombor dan garis bawah.',
     'field_type' => 'Jenis',
     'field_options' => 'Pilihan, satu setiap baris',
+    'field_target' => 'Pautan ke',
+    'field_target_help' => 'Setiap entri pilih satu entri jenis ini, seperti barang memilih kategorinya.',
     'field_types' => [
         'text' => 'Teks pendek',
         'textarea' => 'Teks panjang',
@@ -29,11 +31,13 @@ return [
         'toggle' => 'Ya atau tidak',
         'link' => 'Pautan',
         'image' => 'Gambar',
+        'entry' => 'Pautan ke entri',
     ],
     'saved' => 'Disimpan. Jenis baharu kini ada dalam menu.',
     'duplicate' => 'Dua jenis guna kunci :key.',
     'code_type' => 'Kunci :key sudah digunakan oleh jenis dalam kod.',
     'invalid' => ':type: :error',
     'path_taken' => 'Dua jenis guna alamat :path.',
+    'link_target' => 'Ruangan :field dalam :type mesti dipautkan ke salah satu jenis kandungan.',
     'has_entries' => ':type masih ada :count entri. Padam entri itu dahulu, atau kekalkan jenis ini.',
 ];

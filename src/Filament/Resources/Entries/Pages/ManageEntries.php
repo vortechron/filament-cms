@@ -23,14 +23,15 @@ use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Entries\EntryTypes;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryForm;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
+use Vortechron\FilamentCms\Filament\Resources\Entries\EntryTable;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\Entry;
 
 /**
- * The screen of one entry type, /admin/entries/{type}: its entries, a form
- * made from its fields, "Bina" for the body, and "Reka kad" / "Reka halaman
+ * The screen of one entry type, /admin/entries/{type}: its entries, with
+ * columns and filters from its fields (EntryTable), a form made from its fields, "Bina" for the body, and "Reka kad" / "Reka halaman
  * entri" for the type's card and entry page designs.
  */
 class ManageEntries extends ManageRecords
@@ -75,10 +76,13 @@ class ManageEntries extends ManageRecords
             ->modelLabel($type->getLabel())
             ->pluralModelLabel($type->getPluralLabel())
             ->columns([
+                ...EntryTable::before($type),
                 TextColumn::make('title')->label(__('filament-cms::entries.title'))->searchable(),
+                ...EntryTable::after($type),
                 IconColumn::make('is_published')->label(__('filament-cms::entries.published'))->boolean(),
                 TextColumn::make('updated_at')->label(__('filament-cms::entries.updated'))->since()->sortable(),
             ])
+            ->filters(EntryTable::filters($type))
             ->recordActions([
                 Action::make('build')
                     ->label(__('filament-cms::pages.build'))

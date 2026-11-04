@@ -31,7 +31,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.8
+composer require vortechron/filament-cms:^0.9
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -355,6 +355,11 @@ link, picture). Saving gives the type its screen under Content, the "Entry list"
 migration, no deploy. `StoredEntryTypes` keeps them as one content key (`entry-types`) in `cms_contents`, with its
 versions; `EntryTypes` serves them next to the code types, and a code type wins on the same key or path. A type
 that still has entries is not removed, and a removed field leaves its values in the entries, unseen.
+
+A **link to an entry** field points each entry at one entry of another type (its "Links to"), like an item at its
+category: a choice of all that type's entries (meant for short lists such as categories), stored as the entry's id. `entry.{field}` is the linked entry's title,
+and a link to an entry that is gone shows nothing and is left empty on the next save. A type's screen shows its first
+picture, its choices, links and numbers as columns (up to three) and filters by each choice or link.
 
 ## Roles and permissions
 

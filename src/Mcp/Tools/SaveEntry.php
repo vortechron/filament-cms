@@ -59,7 +59,7 @@ class SaveEntry extends Tool
             'slug' => $schema->string()->description('The last part of its address; made from the title when left out.'),
             'published' => $schema->boolean()->description('Whether visitors see it.'),
             'sort' => $schema->integer()->description('Its place, for types sorted by hand.'),
-            'fields' => $schema->object()->description('The entry type\'s field values, by field name.'),
+            'fields' => $schema->object()->description('The entry type\'s field values, by field name. A link to an entry is the linked entry\'s id (list_entries of its type).'),
             'sections' => $schema->array()->description('Its own page sections, when the type has a body.'),
         ];
     }

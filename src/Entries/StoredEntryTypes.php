@@ -21,7 +21,11 @@ use Vortechron\FilamentCms\Models\Entry;
  *
  *     ['key' => 'product', 'label' => 'Product', 'plural_label' => 'Products',
  *      'icon' => 'heroicon-o-cube', 'path' => '/products', 'body' => false, 'sort' => 'newest',
- *      'fields' => [['name' => 'price', 'label' => 'Price', 'type' => 'number', 'options' => '']]]
+ *      'fields' => [['name' => 'price', 'label' => 'Price', 'type' => 'number', 'options' => ''],
+ *                   ['name' => 'category', 'label' => 'Category', 'type' => 'entry', 'options' => '', 'target' => 'category']]]
+ *
+ * An "entry" field links to one entry of another type (its `target`), like
+ * an item to its category: a select of that type's entries, by id.
  */
 final class StoredEntryTypes
 {
@@ -30,7 +34,7 @@ final class StoredEntryTypes
     /**
      * The field kinds the screen offers.
      */
-    public const FIELD_TYPES = ['text', 'textarea', 'number', 'select', 'toggle', 'link', 'image'];
+    public const FIELD_TYPES = ['text', 'textarea', 'number', 'select', 'toggle', 'link', 'image', 'entry'];
 
     /**
      * The icons the screen offers.
@@ -48,29 +52,27 @@ final class StoredEntryTypes
      */
     public static function definitions(): array
     {
-        try {
-            $content = CmsContent::query()->where('key', self::KEY)->value('content');
-        } catch (QueryException) {
-            return [];
-        }
-
-        $content = is_string($content) ? json_decode($content, true) : $content;
-        $types = is_array($content) && is_array($content['types'] ?? null) ? $content['types'] : [];
-
-        return array_values(array_filter($types, 'is_array'));
+        return self::read() ?? [];
     }
 
     /**
-     * Every saved type that still builds, by key. One that no longer does
-     * (a path the site now uses) is left out and logged.
+     * Every saved type that still builds, by key, or null when the database
+     * can not be read yet (before the migrations, or while it is down). One
+     * that no longer builds (a path the site now uses) is left out and logged.
      *
-     * @return array<string, EntryType>
+     * @return array<string, EntryType>|null
      */
-    public static function load(): array
+    public static function load(): ?array
     {
+        $definitions = self::read();
+
+        if ($definitions === null) {
+            return null;
+        }
+
         $types = [];
 
-        foreach (self::definitions() as $definition) {
+        foreach ($definitions as $definition) {
             try {
                 $type = self::build($definition);
                 $types[$type->key] = $type;
@@ -80,6 +82,23 @@ final class StoredEntryTypes
         }
 
         return $types;
+    }
+
+    /**
+     * @return list<array<string, mixed>>|null
+     */
+    private static function read(): ?array
+    {
+        try {
+            $content = CmsContent::query()->where('key', self::KEY)->value('content');
+        } catch (QueryException) {
+            return null;
+        }
+
+        $content = is_string($content) ? json_decode($content, true) : $content;
+        $types = is_array($content) && is_array($content['types'] ?? null) ? $content['types'] : [];
+
+        return array_values(array_filter($types, 'is_array'));
     }
 
     /**
@@ -144,6 +163,12 @@ final class StoredEntryTypes
             $definitions[$key] = $definition;
         }
 
+        $problem = self::linkProblem($definitions, $codeTypes);
+
+        if ($problem !== null) {
+            return [[], $problem];
+        }
+
         foreach (self::definitions() as $old) {
             $key = (string) ($old['key'] ?? '');
             $count = isset($definitions[$key]) ? 0 : Entry::query()->where('entry_type', $key)->count();
@@ -154,6 +179,28 @@ final class StoredEntryTypes
         }
 
         return [array_values($definitions), null];
+    }
+
+    /**
+     * The first link field that links to no type, in words, or null.
+     *
+     * @param  array<string, array<string, mixed>>  $definitions
+     * @param  array<string, EntryType>  $codeTypes
+     */
+    private static function linkProblem(array $definitions, array $codeTypes): ?string
+    {
+        foreach ($definitions as $definition) {
+            foreach ($definition['fields'] as $field) {
+                if ($field['type'] === 'entry' && ! isset($definitions[$field['target']]) && ! isset($codeTypes[$field['target']])) {
+                    return __('filament-cms::types.link_target', [
+                        'field' => $field['label'] !== '' ? $field['label'] : $field['name'],
+                        'type' => $definition['label'] !== '' ? $definition['label'] : $definition['key'],
+                    ]);
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -171,6 +218,7 @@ final class StoredEntryTypes
                 'label' => trim((string) ($field['label'] ?? '')),
                 'type' => $type,
                 'options' => $type === 'select' ? trim((string) ($field['options'] ?? '')) : '',
+                ...($type === 'entry' ? ['target' => Str::lower(trim((string) ($field['target'] ?? '')))] : []),
             ];
         }
 
@@ -201,12 +249,43 @@ final class StoredEntryTypes
             'toggle' => Field::toggle($name),
             'link' => Field::link($name),
             'image' => Field::image($name),
+            'entry' => self::link($name, (string) ($field['target'] ?? '')),
             default => throw new InvalidArgumentException('An entry field is one of '.implode(', ', self::FIELD_TYPES).". Got [{$field['type']}]."),
         };
 
         $label = trim((string) ($field['label'] ?? ''));
 
         return $label === '' ? $made : $made->label($label);
+    }
+
+    /**
+     * A link field: a select of every entry of the target type, by id, with
+     * an empty first choice for none. Every entry, never the first few, so a
+     * link is never emptied for being past a limit; it is meant for short
+     * lists such as categories. A link to an entry that is gone (or of
+     * another type) is left empty when the entry is next saved.
+     */
+    private static function link(string $name, string $target): Field
+    {
+        return Field::select($name)->options([['value' => '', 'label' => ''], ...self::linkChoices($target)])->default('');
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private static function linkChoices(string $target): array
+    {
+        try {
+            return Entry::query()
+                ->ofType($target)
+                ->orderBy('title')
+                ->orderBy('id')
+                ->get(['id', 'title'])
+                ->map(fn (Entry $entry): array => ['value' => (string) $entry->getKey(), 'label' => (string) $entry->title])
+                ->all();
+        } catch (QueryException) {
+            return [];
+        }
     }
 
     /**

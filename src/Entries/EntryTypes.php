@@ -98,6 +98,15 @@ final class EntryTypes
     }
 
     /**
+     * Reads the panel's types again when next asked, after an entry is
+     * saved or deleted: a link field offers the entries of its type.
+     */
+    public function entriesChanged(): void
+    {
+        $this->stored = null;
+    }
+
+    /**
      * @return array<string, EntryType>
      */
     private function stored(): array
@@ -106,13 +115,23 @@ final class EntryTypes
             // Set first: registering the list block below asks for all().
             $this->stored = [];
             $paths = array_filter(array_map(fn (EntryType $type): ?string => $type->getPath(), $this->types));
+            $loaded = StoredEntryTypes::load();
 
             $this->stored = array_filter(
-                StoredEntryTypes::load(),
+                $loaded ?? [],
                 fn (EntryType $type): bool => ! isset($this->types[$type->key]) && ! in_array($type->getPath(), $paths, true),
             );
 
             EntryList::register(app(BlockRegistry::class), $this);
+
+            if ($loaded === null) {
+                // The database could not be read: try again next time
+                // instead of serving no types until the app restarts.
+                $stored = $this->stored;
+                $this->stored = null;
+
+                return $stored;
+            }
         }
 
         return $this->stored;

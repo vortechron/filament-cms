@@ -28,6 +28,8 @@ and how to use it: `README.md`. Why the design is shaped this way: `docs/v2-devi
   and the developer, `admin` is the client. Gate a new screen with `CmsAccess::allows('<screen>')` and add its
   permission to `CmsRoles::PERMISSIONS` (and to `SUPER_ADMIN_ONLY` if the client should not get it).
 - Content types can be made in code (`EntryType`) or in the panel (`StoredEntryTypes`); both go through `EntryTypes`.
+  A panel type's "link to an entry" field is a select of its target type's entries, built when the types load;
+  saving or deleting an entry makes `EntryTypes` read them again (`entriesChanged()`), so the choices stay fresh.
 - The page limit (`max_pages`, `PageLimit`) defaults to no limit here. Each client sets its package's number in its
   own `config/filament-cms.php` (Website Starter: `env('CMS_MAX_PAGES', 5)`).
 - Local PHP is `php84`. Use `/opt/homebrew/bin/composer`; the Herd composer path has a space in it.

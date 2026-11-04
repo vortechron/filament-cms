@@ -82,7 +82,7 @@ final class EntryForm
     {
         $component = match ($field['type']) {
             'textarea' => Textarea::make($field['name'])->rows(4)->maxLength(10000),
-            'select' => Select::make($field['name'])->options(array_column($field['options'] ?? [], 'label', 'value')),
+            'select' => Select::make($field['name'])->options(self::choices($field)),
             'toggle' => Toggle::make($field['name']),
             'number' => TextInput::make($field['name'])->numeric()->minValue($field['min'] ?? null)->maxValue($field['max'] ?? null),
             'link' => CmsUrl::make($field['name']),
@@ -92,6 +92,27 @@ final class EntryForm
         };
 
         return $component->label($field['label'])->default($field['type'] === 'image' ? null : ($field['default'] ?? null));
+    }
+
+    /**
+     * A select's choices by value. An empty choice (a link's "none") is left
+     * out: the select's placeholder stands for it, and a cleared select is
+     * saved as the field's default, that empty choice.
+     *
+     * @param  array<string, mixed>  $field  Field::toArray()
+     * @return array<string, string>
+     */
+    public static function choices(array $field): array
+    {
+        $choices = [];
+
+        foreach ($field['options'] ?? [] as $option) {
+            if ($option['value'] !== '') {
+                $choices[$option['value']] = $option['label'];
+            }
+        }
+
+        return $choices;
     }
 
     /**
