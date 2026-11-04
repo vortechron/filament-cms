@@ -9,7 +9,8 @@ use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
 
 /**
  * Answers a visitor in the site's language (SITE_LOCALE), not the panel's:
- * the page, a form's errors and the not-found page. The app gets its own
+ * the page and a form's errors. An error page drawn after the request ends
+ * (a 404) is in the app's language. The app gets its own
  * language back afterwards, and ContentLocale::panel() still names it, so
  * the shop's email goes out in the panel's language.
  */
