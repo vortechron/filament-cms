@@ -260,6 +260,32 @@ class BuildSitePage extends Page
     }
 
     /**
+     * Every page, drafts too, for the menu under a page's title: the home
+     * page first, then the others in menu order, each a link to its own
+     * builder. Only a page's builder has it.
+     *
+     * @return list<array{title: string, url: string, current: bool}>
+     */
+    protected function getPageBuilderPageMenu(): array
+    {
+        if ($this->record->cmsKind() !== CmsKind::Page) {
+            return [];
+        }
+
+        return SitePage::query()
+            ->orderByRaw("path = '/' desc")
+            ->orderBy('sort')
+            ->orderBy('id')
+            ->get(['id', 'title'])
+            ->map(fn (SitePage $page): array => [
+                'title' => (string) $page->title,
+                'url' => static::getUrl(['record' => $page->getKey()]),
+                'current' => (string) $page->getKey() === (string) $this->record->getKey(),
+            ])
+            ->all();
+    }
+
+    /**
      * The published pages a link can point to: the home page first, then
      * the others in menu order (sort, then the order they were made).
      *
