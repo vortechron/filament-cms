@@ -8,6 +8,7 @@ return [
     'legal_name' => 'Nama syarikat berdaftar',
     'registration_number' => 'No. pendaftaran (SSM)',
     'logo' => 'Logo',
+    'logo_help' => 'Kosong: laman web menunjukkan nama perniagaan sebagai teks. Muat naik logo anda di sini untuk menunjukkannya.',
     'contact' => 'Hubungi',
     'phones' => 'Nombor WhatsApp dan telefon',
     'phones_help' => 'Nombor pertama digunakan untuk butang WhatsApp.',

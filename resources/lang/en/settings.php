@@ -8,6 +8,7 @@ return [
     'legal_name' => 'Registered company name',
     'registration_number' => 'Registration number (SSM)',
     'logo' => 'Logo',
+    'logo_help' => 'Empty: the site shows the business name as text. Upload your logo here to show it instead.',
     'contact' => 'Contact',
     'phones' => 'WhatsApp and phone numbers',
     'phones_help' => 'The first number is used for the WhatsApp buttons.',

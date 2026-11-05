@@ -87,4 +87,12 @@ class SettingsTest extends TestCase
         $this->assertSame($home->getGroup(), $settings->getGroup());
         $this->assertGreaterThan($home->getSort(), $settings->getSort());
     }
+
+    public function test_an_empty_logo_says_the_site_shows_the_name_instead(): void
+    {
+        $this->actingAsClient();
+
+        Livewire::test(EditSettings::class)
+            ->assertSee('Kosong: laman web menunjukkan nama perniagaan sebagai teks.');
+    }
 }
