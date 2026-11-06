@@ -17,7 +17,7 @@ class ShowSitePage
     public function __invoke(?string $path = null): View
     {
         $path = SitePage::cleanPath($path);
-        $page = SitePage::query()->published()->where('path', $path)->first();
+        $page = SitePage::query()->inLanguage()->published()->where('path', $path)->first();
 
         if ($page !== null) {
             return app(SitePageRenderer::class)->view($page);

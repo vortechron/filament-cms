@@ -9,13 +9,16 @@ use Filament\Resources\Pages\Page;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
 use Vortechron\FilamentBlockEditor\Enums\DocumentKind;
 use Vortechron\FilamentBlockEditor\Filament\Concerns\InteractsWithPageBuilder;
+use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
 use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Cms;
 use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\DocumentStore;
+use Vortechron\FilamentCms\DocumentTranslations;
 use Vortechron\FilamentCms\Entries\EntryBuilder;
 use Vortechron\FilamentCms\Entries\EntryList;
 use Vortechron\FilamentCms\Filament\Resources\Entries\EntryResource;
@@ -28,6 +31,7 @@ use Vortechron\FilamentCms\Models\Entry;
 use Vortechron\FilamentCms\Models\SitePage;
 use Vortechron\FilamentCms\SectionLibrary;
 use Vortechron\FilamentCms\SiteInfo;
+use Vortechron\FilamentCms\SiteLanguages;
 use Vortechron\FilamentCms\SitePageRenderer;
 
 /**
@@ -53,10 +57,14 @@ class BuildSitePage extends Page
 
     protected static string $resource = SitePageResource::class;
 
+    #[Locked]
+    public array $siteInfoBaseline = [];
+
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
         $this->authorizePageBuilder();
+        $this->siteInfoBaseline = ContentLocale::with($this->record->language(), fn (): array => $this->getPageBuilderSiteInfo()['values'] ?? []);
     }
 
     protected function resolveRecord(int|string $key): Model
@@ -65,7 +73,17 @@ class BuildSitePage extends Page
             // Check before the part is made, not after.
             abort_unless(self::mayBuild(null), 403);
 
-            return Document::findOrCreatePart((string) $key);
+            $locale = request()->query('locale', SiteLanguages::default());
+            if (SiteLanguages::enabled()) {
+                SiteLanguages::check(is_string($locale) ? $locale : '');
+            }
+
+            if (SiteLanguages::enabled() && $locale !== SiteLanguages::default()
+                && ContentLocale::with((string) $locale, fn (): ?Document => Document::firstOfKind((string) $key)) === null) {
+                abort_unless(SitePageResource::canCreate(), 403);
+            }
+
+            return SiteLanguages::run((string) $locale, fn (): Document => Document::findOrCreatePart((string) $key));
         }
 
         $kind = CmsKind::tryFrom((string) Document::query()->whereKey($key)->value('kind'));
@@ -123,7 +141,7 @@ class BuildSitePage extends Page
         $options = $this->pageBuilderBaseOptions();
 
         if ($this->plugin()->hasSections()) {
-            $options['templates'] = [...$options['templates'] ?? [], ...app(SectionLibrary::class)->templates()];
+            $options['templates'] = [...$options['templates'] ?? [], ...ContentLocale::with($this->record->language(), fn (): array => app(SectionLibrary::class)->templates())];
         }
 
         if (! $this->plugin()->hasEntries()) {
@@ -165,6 +183,44 @@ class BuildSitePage extends Page
     protected function getPageBuilderValue(): array
     {
         return is_array($this->record->content) ? $this->record->content : [];
+    }
+
+    protected function getPageBuilderContentLocale(): string
+    {
+        return $this->record->language();
+    }
+
+    protected function getPageBuilderLanguages(): array
+    {
+        if (! SiteLanguages::enabled() || in_array($this->record->kind, [Document::KIT, Document::ENTRY], true)) {
+            return [];
+        }
+
+        $languages = [];
+        foreach (SiteLanguages::labels() as $locale => $label) {
+            $other = $this->record->translation($locale);
+            if ($other === null && ! $this->mayCreateTranslation()) {
+                continue;
+            }
+            $languages[] = ['locale' => $locale, 'label' => $label, 'url' => $other ? static::getUrl(['record' => $other->getKey()]) : null, 'current' => $locale === $this->record->language()];
+        }
+
+        return $languages;
+    }
+
+    public function createPageBuilderTranslation(string $locale): array
+    {
+        $this->authorizePageBuilder();
+        SiteLanguages::check($locale);
+        abort_unless($this->record->translation($locale) !== null || $this->mayCreateTranslation(), 403);
+        $translated = app(DocumentTranslations::class)->create($this->record, $locale, Filament::auth()->user());
+
+        return ['url' => static::getUrl(['record' => $translated->getKey()])];
+    }
+
+    private function mayCreateTranslation(): bool
+    {
+        return $this->record->cmsKind()?->holdsOneSection() === true ? SiteSectionResource::canCreate() : SitePageResource::canCreate();
     }
 
     protected function savePageBuilderValue(array $value): void
@@ -255,7 +311,7 @@ class BuildSitePage extends Page
         return array_map(fn (CmsKind $kind): array => [
             'key' => $kind->value,
             'title' => $kind->label(),
-            'editUrl' => static::getUrl(['record' => $kind->value]),
+            'editUrl' => static::getUrl(['record' => $kind->value, ...(SiteLanguages::enabled() ? ['locale' => $this->record->language()] : [])]),
         ], CmsKind::parts());
     }
 
@@ -273,6 +329,7 @@ class BuildSitePage extends Page
         }
 
         return SitePage::query()
+            ->inLanguage($this->record->language())
             ->orderByRaw("path = '/' desc")
             ->orderBy('sort')
             ->orderBy('id')
@@ -294,6 +351,7 @@ class BuildSitePage extends Page
     protected function getPageBuilderPages(): array
     {
         return SitePage::query()
+            ->inLanguage($this->record->language())
             ->published()
             ->orderByRaw("path = '/' desc")
             ->orderBy('sort')
@@ -329,7 +387,22 @@ class BuildSitePage extends Page
             throw ValidationException::withMessages(['siteInfo' => __('filament-cms::documents.parts_off')]);
         }
 
-        app(SiteInfo::class)->save($values, Filament::auth()->user());
+        $changes = [];
+        foreach ($values as $group => $fields) {
+            foreach ($fields as $field => $value) {
+                if ($value !== ($this->siteInfoBaseline[$group][$field] ?? null)) {
+                    $changes[$group][$field] = $value;
+                }
+            }
+        }
+        SiteLanguages::run($this->record->language(), fn () => app(SiteInfo::class)->save($changes, Filament::auth()->user()));
+        // React keeps the submitted values after saving. Keep the same
+        // snapshot here, so a second save still sends only real edits.
+        foreach ($values as $group => $fields) {
+            foreach ($fields as $field => $value) {
+                $this->siteInfoBaseline[$group][$field] = $value;
+            }
+        }
     }
 
     protected function savePageBuilderSection(array $section, string $title, bool $synced): array
@@ -338,7 +411,7 @@ class BuildSitePage extends Page
             return ['ok' => false, 'errors' => ['section' => __('filament-cms::sections.off')]];
         }
 
-        return app(SectionLibrary::class)->save($section, $title, $synced, Filament::auth()->user(), $this->isPageBuilderDeveloper());
+        return SiteLanguages::run($this->record->language(), fn () => app(SectionLibrary::class)->save($section, $title, $synced, Filament::auth()->user(), $this->isPageBuilderDeveloper()));
     }
 
     protected function getPageBuilderSyncedSections(): array

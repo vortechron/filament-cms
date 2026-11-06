@@ -4,6 +4,11 @@ use Vortechron\FilamentCms\Settings\StandardSettings;
 
 return [
 
+    // Opt in per site. Existing single-language sites keep their addresses.
+    'locales' => [],
+    'default_locale' => null,
+    'translatable_settings' => ['hours' => ['note'], 'seo' => ['title', 'description']],
+
     /*
     | The pages the client can edit, as CmsPage classes. Each one becomes an
     | item under "Kandungan" in the panel and is read with cms('<key>').

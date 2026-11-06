@@ -27,6 +27,7 @@ use Vortechron\FilamentCms\FilamentCmsPlugin;
 use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
+use Vortechron\FilamentCms\SiteLanguages;
 use Vortechron\FilamentCms\SitePageStore;
 
 /**
@@ -72,9 +73,13 @@ class SitePageResource extends Resource
                     ->prefix(fn (): string => rtrim(url('/'), '/'))
                     ->required()
                     ->maxLength(120)
-                    ->dehydrateStateUsing(fn (?string $state): string => SitePage::cleanPath($state))
+                    ->dehydrateStateUsing(fn (?string $state, ?SitePage $record): string => SiteLanguages::enabled() ? SiteLanguages::path((string) $state, $record?->language() ?? SiteLanguages::default()) : SitePage::cleanPath($state))
                     ->rule(fn (?SitePage $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
-                        if (Document::pathTaken(is_string($value) ? $value : '', $record)) {
+                        $path = is_string($value) ? $value : '';
+                        if (SiteLanguages::enabled()) {
+                            $path = SiteLanguages::path($path, $record?->language() ?? SiteLanguages::default());
+                        }
+                        if (Document::pathTaken($path, $record)) {
                             $fail(__('filament-cms::pages.path_taken'));
                         }
                     }),
@@ -95,6 +100,7 @@ class SitePageResource extends Resource
             ->defaultSort('path')
             ->columns([
                 TextColumn::make('title')->label(__('filament-cms::pages.title'))->searchable(),
+                TextColumn::make('locale')->label(__('filament-cms::languages.language'))->state(fn (SitePage $record): string => SiteLanguages::labels()[$record->language()] ?? $record->language())->badge()->visible(fn (): bool => SiteLanguages::enabled()),
                 TextColumn::make('path')
                     ->label(__('filament-cms::pages.path'))
                     ->url(fn (SitePage $record): string => $record->url(), shouldOpenInNewTab: true),

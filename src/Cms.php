@@ -68,7 +68,9 @@ final class Cms
             return $this->settingsOverride;
         }
 
-        return CmsContent::query()->where('key', $key)->value('content') ?? [];
+        $saved = CmsContent::query()->where('key', $key)->value('content') ?? [];
+
+        return $key === self::SETTINGS ? CmsSettingsTranslations::overlay($saved, SiteLanguages::current()) : $saved;
     }
 
     /**

@@ -38,8 +38,8 @@ final class SitePageRenderer
 
         return $this->pageView($page, $sections, $context, [
             'content' => $this->pages->render($sections, $context),
-            'header' => $this->part(Document::HEADER, $values),
-            'footer' => $this->part(Document::FOOTER, $values),
+            'header' => $this->part(Document::HEADER, $values, $forBuilder),
+            'footer' => $this->part(Document::FOOTER, $values, $forBuilder),
         ]);
     }
 
@@ -62,8 +62,8 @@ final class SitePageRenderer
 
         return $this->pageView($home, $isPart ? $home->sections : $sections, $context, [
             'content' => $isPart ? self::wrap('page', $this->pages->render($home->sections, new RenderContext(values: $values))) : $this->pages->render($sections, $context),
-            'header' => $document->kind === Document::HEADER ? $edited : $this->part(Document::HEADER, $values),
-            'footer' => $document->kind === Document::FOOTER ? $edited : $this->part(Document::FOOTER, $values),
+            'header' => $document->kind === Document::HEADER ? $edited : $this->part(Document::HEADER, $values, true),
+            'footer' => $document->kind === Document::FOOTER ? $edited : $this->part(Document::FOOTER, $values, true),
         ]);
     }
 
@@ -73,9 +73,13 @@ final class SitePageRenderer
      *
      * @param  array<string, mixed>  $values  dynamic values of the page it is drawn on
      */
-    public function part(string $kind, array $values = []): string
+    public function part(string $kind, array $values = [], bool $includeDraft = false): string
     {
-        $sections = Document::firstOfKind($kind)?->contentSections() ?? [];
+        $document = Document::firstOfKind($kind);
+        if ($document !== null && ! $includeDraft && ! $document->isPublicPart()) {
+            return '';
+        }
+        $sections = $document?->contentSections() ?? [];
 
         if (PageContent::visible($sections) === []) {
             return '';
@@ -94,8 +98,8 @@ final class SitePageRenderer
     {
         return $this->pageView($page, $sections, $context, [
             'content' => $content,
-            'header' => $this->part(Document::HEADER, $context->values),
-            'footer' => $this->part(Document::FOOTER, $context->values),
+            'header' => $this->part(Document::HEADER, $context->values, $context->isPreview),
+            'footer' => $this->part(Document::FOOTER, $context->values, $context->isPreview),
         ]);
     }
 

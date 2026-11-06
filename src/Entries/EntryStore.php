@@ -3,9 +3,12 @@
 namespace Vortechron\FilamentCms\Entries;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentCms\DocumentStore;
+use Vortechron\FilamentCms\EntryTranslations;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\Entry;
 
@@ -53,6 +56,21 @@ final class EntryStore
             return ['ok' => false, 'errors' => $errors];
         }
 
+        $translations = $data['translations'] ?? [];
+        try {
+            if (! is_array($translations)) {
+                throw ValidationException::withMessages(['translations' => 'Translations must be an object by language.']);
+            }
+            foreach ($translations as $locale => $values) {
+                if (! is_string($locale) || ! is_array($values)) {
+                    throw ValidationException::withMessages(['translations' => 'Each translation must contain text fields.']);
+                }
+                app(EntryTranslations::class)->validate($entry, $locale, $values);
+            }
+        } catch (ValidationException $exception) {
+            return ['ok' => false, 'errors' => array_map(fn (array $messages): string => $messages[0], $exception->errors())];
+        }
+
         $entry->title = $data['title'];
         $entry->path = $type->getPath() === null ? null : $this->path($entry, $type, $data);
 
@@ -66,7 +84,20 @@ final class EntryStore
             $entry->sort = (int) Entry::query()->ofType($type->key)->max('sort') + 1;
         }
 
-        return $this->documents->save($entry, array_intersect_key($data, array_flip(['fields', 'sections'])), $user, $developer);
+        try {
+            return DB::transaction(function () use ($entry, $data, $user, $developer, $translations): array {
+                $result = $this->documents->save($entry, array_intersect_key($data, array_flip(['fields', 'sections'])), $user, $developer);
+                if ($result['ok']) {
+                    foreach ($translations as $locale => $values) {
+                        app(EntryTranslations::class)->save($entry, $locale, $values, $user, array_key_exists('translation_baseline', $data) ? ($data['translation_baseline'][$locale] ?? []) : null);
+                    }
+                }
+
+                return $result;
+            });
+        } catch (ValidationException $exception) {
+            return ['ok' => false, 'errors' => array_map(fn (array $messages): string => $messages[0], $exception->errors())];
+        }
     }
 
     /**

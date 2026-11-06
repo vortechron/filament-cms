@@ -77,6 +77,7 @@ final class RegisteredEntries implements McpEntries
             'sort' => $entry['sort'] ?? null,
             'fields' => $entry['fields'] ?? null,
             'sections' => $entry['sections'] ?? null,
+            'translations' => $entry['translations'] ?? null,
         ], fn (mixed $value): bool => $value !== null);
 
         if (array_key_exists('slug', $entry)) {
@@ -153,6 +154,7 @@ final class RegisteredEntries implements McpEntries
             'id' => $entry->getKey(),
             'type' => $entry->entry_type,
             'title' => (string) $entry->title,
+            'translations' => $entry->settings['translations'] ?? [],
             'path' => $entry->path,
             'url' => $entry->definition()?->getPath() === null ? null : $entry->url(),
             'published' => (bool) $entry->is_published,

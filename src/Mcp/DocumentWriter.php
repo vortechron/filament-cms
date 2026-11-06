@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Mcp;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\SiteLanguages;
 
 /**
  * Saves a document for the MCP server: its meta (title, path, published,
@@ -23,6 +24,9 @@ final class DocumentWriter
      */
     public function save(Document $document, ?array $value, array $meta): array
     {
+        if (SiteLanguages::enabled() && $document->kind === Document::PAGE && is_string($meta['path'] ?? null)) {
+            $meta['path'] = SiteLanguages::path($meta['path'], $document->language());
+        }
         $errors = $this->metaErrors($document, $meta);
 
         if ($errors !== []) {

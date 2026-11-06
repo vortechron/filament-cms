@@ -28,6 +28,7 @@ class SaveEntry extends Tool
             ...$request->all(['id', 'type', 'title', 'slug', 'published', 'sort']),
             'fields' => Input::json($request->get('fields')),
             'sections' => Input::json($request->get('sections')),
+            'translations' => Input::json($request->get('translations')),
         ], fn (mixed $value): bool => $value !== null);
 
         $errors = Input::errors([...$request->all(), ...$entry], [
@@ -39,6 +40,7 @@ class SaveEntry extends Tool
             'sort' => ['nullable', 'integer', 'min:0'],
             'fields' => ['nullable', 'array'],
             'sections' => ['nullable', 'array'],
+            'translations' => ['nullable', 'array'],
         ]);
 
         if ($errors !== []) {
@@ -60,6 +62,7 @@ class SaveEntry extends Tool
             'published' => $schema->boolean()->description('Whether visitors see it.'),
             'sort' => $schema->integer()->description('Its place, for types sorted by hand.'),
             'fields' => $schema->object()->description('The entry type\'s field values, by field name. A link to an entry is the linked entry\'s id (list_entries of its type).'),
+            'translations' => $schema->object()->description('Optional translated title and text fields, by configured language, such as {"en":{"title":"Pencil","fields":{"description":"Wooden pencil"}}}. Prices and links stay shared.'),
             'sections' => $schema->array()->description('Its own page sections, when the type has a body.'),
         ];
     }

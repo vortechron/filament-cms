@@ -18,6 +18,7 @@ final class EntryTemplates
     {
         return Document::query()
             ->ofKind($kind)
+            ->inLanguage()
             ->where('entry_type', $type instanceof EntryType ? $type->key : $type)
             ->oldest('id')
             ->first();

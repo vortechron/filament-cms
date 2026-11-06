@@ -32,4 +32,5 @@ and how to use it: `README.md`. Why the design is shaped this way: `docs/v2-devi
   saving or deleting an entry makes `EntryTypes` read them again (`entriesChanged()`), so the choices stay fresh.
 - The page limit (`max_pages`, `PageLimit`) defaults to no limit here. Each client sets its package's number in its
   own `config/filament-cms.php` (Website Starter: `env('CMS_MAX_PAGES', 5)`).
+- Website languages are opt-in. Before changing language versions, shared entry/settings text, or language-aware forms, read README "Website languages" and `docs/adr/0001-linked-language-documents.md`.
 - Local PHP is `php84`. Use `/opt/homebrew/bin/composer`; the Herd composer path has a space in it.

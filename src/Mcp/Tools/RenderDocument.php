@@ -21,6 +21,7 @@ use Vortechron\FilamentCms\Mcp\Reply;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\Entry;
 use Vortechron\FilamentCms\Models\SitePage;
+use Vortechron\FilamentCms\SiteLanguages;
 use Vortechron\FilamentCms\SitePageRenderer;
 
 #[Name('render_document')]
@@ -46,12 +47,12 @@ class RenderDocument extends Tool
             return Reply::refuse('include_unpublished', "Visitors do not see document {$document->getKey()} ({$document->kind}) on its own. Send include_unpublished: true to draw it anyway.");
         }
 
-        return Response::text(self::cut(match (true) {
+        return Response::text(SiteLanguages::run($document->language(), fn (): string => self::cut(match (true) {
             $document->kind === Document::PAGE => $site->view(SitePage::query()->findOrFail($document->getKey()))->render(),
             $document->kind === Document::ENTRY => $entries->view(Entry::query()->findOrFail($document->getKey()))->render(),
-            $document->cmsKind()->isPart() => $site->part($document->kind, SitePageRenderer::homeValues()),
+            $document->cmsKind()->isPart() => $site->part($document->kind, SitePageRenderer::homeValues(), $request->get('include_unpublished') === true),
             default => self::sections($document, $pages),
-        }));
+        })));
     }
 
     /**
@@ -79,7 +80,7 @@ class RenderDocument extends Tool
         $kind = $document->cmsKind();
 
         if ($kind?->isPart() === true) {
-            return true;
+            return $document->isPublicPart();
         }
 
         // An entry has a page only while its type is registered with a path.

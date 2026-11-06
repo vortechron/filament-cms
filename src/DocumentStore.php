@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
+use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
 use Vortechron\FilamentCms\Documents\ContentHandler;
 use Vortechron\FilamentCms\Documents\PageValueContent;
 use Vortechron\FilamentCms\Models\CmsRevision;
@@ -30,6 +31,18 @@ final class DocumentStore
      */
     public function save(Document $document, array $value, ?Authenticatable $user, ?bool $developer = null): array
     {
+        return ContentLocale::with($document->language(), fn (): array => $this->saveInLanguage($document, $value, $user, $developer));
+    }
+
+    private function saveInLanguage(Document $document, array $value, ?Authenticatable $user, ?bool $developer): array
+    {
+        if (SiteLanguages::enabled() && $document->kind === Document::PAGE && $document->path !== null) {
+            $path = SiteLanguages::path($document->path, $document->language());
+            if (Document::pathTaken($path, $document)) {
+                return ['ok' => false, 'errors' => ['path' => __('filament-cms::pages.path_taken')]];
+            }
+            $document->path = $path;
+        }
         $content = self::content($document);
         $value = $content->merge($document, $value);
         $errors = $content->errors($document, $value);

@@ -4,7 +4,9 @@ namespace Vortechron\FilamentCms\Mcp;
 
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Design\Kit;
+use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
 use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\SiteLanguages;
 
 /**
  * How the MCP server shows a document to the agent.
@@ -21,6 +23,7 @@ final class DocumentInfo
         return [
             'id' => $document->getKey(),
             'kind' => $document->kind,
+            ...(SiteLanguages::enabled() ? ['locale' => $document->language(), 'translation_root' => $document->translationRootId()] : []),
             'title' => (string) $document->title,
             'path' => $document->path,
             'published' => (bool) $document->is_published,
@@ -52,6 +55,11 @@ final class DocumentInfo
      * @return array<string, mixed>
      */
     public static function value(Document $document): array
+    {
+        return ContentLocale::with($document->language(), fn (): array => self::localizedValue($document));
+    }
+
+    private static function localizedValue(Document $document): array
     {
         $content = is_array($document->content) ? $document->content : [];
 

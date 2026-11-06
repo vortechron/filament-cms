@@ -3,10 +3,12 @@
 namespace Vortechron\FilamentCms;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentCms\Models\CmsContent;
 use Vortechron\FilamentCms\Settings\SettingsSection;
 
 /**
@@ -58,27 +60,43 @@ final class SiteInfo
      */
     public function save(array $values, ?Authenticatable $user): void
     {
-        $saved = $this->cms->saved(Cms::SETTINGS);
-        $errors = [];
-        $changes = [];
-
-        foreach ($this->sections() as $key => $section) {
-            if (! is_array($values[$key] ?? null)) {
-                continue;
-            }
-
-            ['values' => $changes[$key], 'errors' => $groupErrors] = $this->clean($section, $values[$key], $saved);
-
-            foreach ($groupErrors as $field => $message) {
-                $errors["{$key}.{$field}"] = $message;
+        $locale = SiteLanguages::current();
+        $translated = [];
+        if (SiteLanguages::enabled() && $locale !== SiteLanguages::default()) {
+            foreach (CmsSettingsTranslations::fields() as $section => $fields) {
+                foreach ($fields as $field) {
+                    if (array_key_exists($field, $values[$section] ?? [])) {
+                        $translated[$section][$field] = $values[$section][$field];
+                        unset($values[$section][$field]);
+                    }
+                }
             }
         }
 
-        if ($errors !== []) {
-            throw ValidationException::withMessages($errors);
-        }
-
-        $this->store->save(Cms::SETTINGS, self::merged($saved, $changes), $user);
+        DB::transaction(function () use ($locale, $translated, $values, $user): void {
+            $stored = CmsContent::query()->where('key', Cms::SETTINGS)->lockForUpdate()->first();
+            $saved = $stored?->content ?? [];
+            $errors = [];
+            $changes = [];
+            foreach ($this->sections() as $key => $section) {
+                if (! is_array($values[$key] ?? null) || $values[$key] === []) {
+                    continue;
+                }
+                ['values' => $changes[$key], 'errors' => $groupErrors] = $this->clean($section, $values[$key], $saved);
+                foreach ($groupErrors as $field => $message) {
+                    $errors["{$key}.{$field}"] = $message;
+                }
+            }
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
+            }
+            if ($translated !== []) {
+                app(CmsSettingsTranslations::class)->save($locale, $translated, $user);
+            }
+            if ($changes !== []) {
+                $this->store->save(Cms::SETTINGS, self::merged($saved, $changes), $user);
+            }
+        });
     }
 
     /**

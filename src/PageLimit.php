@@ -26,7 +26,7 @@ final class PageLimit
 
     public static function used(): int
     {
-        return SitePage::query()->count();
+        return SitePage::query()->whereNull('translation_of')->count();
     }
 
     public static function reached(): bool

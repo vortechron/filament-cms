@@ -5,9 +5,13 @@ namespace Vortechron\FilamentCms\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentCms\Documents\CmsKind;
+use Vortechron\FilamentCms\DocumentTranslations;
+use Vortechron\FilamentCms\EntryTranslations;
+use Vortechron\FilamentCms\SiteLanguages;
 
 /**
  * Everything the client builds in the page builder, one row each: pages,
@@ -58,6 +62,75 @@ class Document extends Model
     protected function casts(): array
     {
         return ['content' => 'array', 'settings' => 'array', 'is_published' => 'boolean', 'sort' => 'integer'];
+    }
+
+    public function language(): string
+    {
+        return $this->locale ?: SiteLanguages::default();
+    }
+
+    public function translationRootId(): int
+    {
+        return (int) ($this->translation_of ?: $this->getKey());
+    }
+
+    /** Default-language parts predate publishing; translated parts start as drafts. */
+    public function isPublicPart(): bool
+    {
+        return $this->cmsKind()?->isPart() === true && ($this->language() === SiteLanguages::default() || $this->is_published);
+    }
+
+    public function translations(): Collection
+    {
+        $root = $this->translationRootId();
+
+        return self::query()->where(fn (Builder $q) => $q->whereKey($root)->orWhere('translation_of', $root))->get();
+    }
+
+    public function translation(string $locale): ?self
+    {
+        return $this->translations()->first(fn (self $document): bool => $document->language() === $locale);
+    }
+
+    public function translatedTitle(?string $locale = null): string
+    {
+        $locale ??= SiteLanguages::current();
+        $title = $this->settings['translations'][$locale]['title'] ?? null;
+
+        return $locale !== SiteLanguages::default() && is_string($title) && trim($title) !== '' ? $title : (string) $this->title;
+    }
+
+    public function translatedFieldValues(?string $locale = null): array
+    {
+        if (! $this instanceof Entry) {
+            return [];
+        }
+        $locale ??= SiteLanguages::current();
+        $fields = $this->fieldValues();
+        if ($locale === SiteLanguages::default()) {
+            return $fields;
+        }
+        $allowed = array_map(fn ($field): string => $field->name, EntryTranslations::fields($this));
+        $text = $this->settings['translations'][$locale]['fields'] ?? [];
+
+        return array_replace($fields, array_filter(array_intersect_key(is_array($text) ? $text : [], array_flip($allowed)), fn ($value): bool => is_string($value) && $value !== ''));
+    }
+
+    public function scopeInLanguage(Builder $query, ?string $locale = null): void
+    {
+        if (! SiteLanguages::enabled()) {
+            $query->whereNull('translation_of');
+
+            return;
+        }
+
+        $locale ??= SiteLanguages::current();
+        $query->where(function (Builder $query) use ($locale): void {
+            $query->where('locale', $locale);
+            if ($locale === SiteLanguages::default()) {
+                $query->orWhereNull('locale');
+            }
+        });
     }
 
     /**
@@ -119,7 +192,7 @@ class Document extends Model
      */
     public static function firstOfKind(string $kind): ?self
     {
-        return static::query()->ofKind($kind)->oldest('id')->first();
+        return static::query()->ofKind($kind)->when($kind !== self::KIT, fn (Builder $q) => $q->inLanguage())->oldest('id')->first();
     }
 
     /**
@@ -127,6 +200,12 @@ class Document extends Model
      */
     public static function findOrCreatePart(string $kind): self
     {
+        if (SiteLanguages::enabled() && SiteLanguages::current() !== SiteLanguages::default() && self::firstOfKind($kind) === null) {
+            $root = SiteLanguages::run(SiteLanguages::default(), fn (): self => self::findOrCreatePart($kind));
+
+            return app(DocumentTranslations::class)->create($root, SiteLanguages::current());
+        }
+
         return self::firstOfKind($kind) ?? static::query()->create([
             'kind' => $kind,
             'title' => CmsKind::from($kind)->label(),

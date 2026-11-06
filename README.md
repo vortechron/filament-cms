@@ -31,7 +31,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.10
+composer require vortechron/filament-cms:^0.13
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -541,3 +541,39 @@ class SiteSettings extends StandardSettings
 ```bash
 composer test
 ```
+
+
+## Website languages (opt in)
+
+Set `filament-cms.locales` to `['ms' => 'Bahasa Melayu', 'en' => 'English']`
+and `default_locale` to `ms`. Existing rows with no locale are the default language;
+no page content or old address is rewritten by the language migration.
+
+The builder language menu opens a linked document, or copies the current document
+into a new draft once. Each version keeps its own title, full path (for example
+`/en/contact`), publish flag, content and version history. Copies count as one page
+for `max_pages`. The design kit and media are shared. Later layout edits are independent.
+Public routes and form submissions use the document language; owner emails keep the
+panel language. Secondary-language header/footer drafts are hidden outside previews.
+
+`DocumentTranslations::create($document, 'en', $user)` is the same trusted copy path
+used by the authorized builder and `create_document` MCP tool (`translation_of`, `locale`).
+MCP summaries expose `locale` and `translation_root`; existing ids still select the
+same saved language. Save, section and restore tools therefore cannot overwrite a
+counterpart. A language switch must use `SiteLanguages::links($page)`, which includes
+only published counterparts, rather than prefixing the current URL.
+
+Entries retain one identity and one set of prices, images and relationships.
+`EntryTranslations::save($entry, 'en', ['title' => 'Pencil', 'fields' =>
+['description' => 'Wooden pencil']], $user)` changes optional text only. Their panel
+forms and MCP `save_entry` accept `translations` by locale. Empty text falls back
+to the original language. `translatedTitle()` and `translatedFieldValues()` read it;
+entry dynamic values use those automatically.
+
+Settings translations are restricted by `translatable_settings` (section => field names).
+`CmsSettingsTranslations::save('en', ['hours' => ['note' => 'Closed Sunday']], $user)`
+keeps them under `settings:en`, with their own history. `cms_settings()` overlays them
+when rendering English. Settings has one translated-text action per secondary language;
+MCP `get_settings`/`save_settings` accept an optional `locale` for those text fields.
+Shop facts remain shared. Use `SiteLanguages::run($locale, $callback)` around non-HTTP
+rendering, so helpers, dynamic values, parts and validation all use the selected language.

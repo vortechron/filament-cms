@@ -3,12 +3,14 @@
 namespace Vortechron\FilamentCms\Filament\Resources\Entries;
 
 use Filament\Forms\Components\Field as FormField;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
 use Illuminate\Support\Str;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
 use Vortechron\FilamentCms\CmsImage;
@@ -16,6 +18,7 @@ use Vortechron\FilamentCms\CmsUrl;
 use Vortechron\FilamentCms\Entries\EntryPictures;
 use Vortechron\FilamentCms\Entries\EntryType;
 use Vortechron\FilamentCms\Models\Entry;
+use Vortechron\FilamentCms\SiteLanguages;
 
 /**
  * The entry form, made from the type's fields: text, textarea, select,
@@ -41,7 +44,31 @@ final class EntryForm
             ]),
             Toggle::make('is_published')->label(__('filament-cms::entries.published'))->default(false),
             Group::make(array_map(self::component(...), self::definitions($type->getFields())))->statePath('fields'),
+            ...self::translationComponents($type),
+            Hidden::make('translation_baseline'),
         ];
+    }
+
+    private static function translationComponents(EntryType $type): array
+    {
+        if (! SiteLanguages::enabled()) {
+            return [];
+        }
+        $sections = [];
+        foreach (SiteLanguages::labels() as $locale => $label) {
+            if ($locale === SiteLanguages::default()) {
+                continue;
+            }
+            $sections[] = Section::make($label)
+                ->description(__('filament-cms::languages.entry_help'))
+                ->collapsed()
+                ->schema([
+                    TextInput::make("translations.{$locale}.title")->label(__('filament-cms::entries.title'))->maxLength(120),
+                    ...array_map(fn (Field $field) => Textarea::make("translations.{$locale}.fields.{$field->name}")->label($field->toArray()['label'])->maxLength(10000), array_values(array_filter($type->getFields(), fn (Field $field): bool => in_array($field->type, ['text', 'textarea'], true)))),
+                ]);
+        }
+
+        return $sections;
     }
 
     /**
@@ -53,6 +80,8 @@ final class EntryForm
     {
         return [
             'title' => $entry->title,
+            'translations' => $entry->settings['translations'] ?? [],
+            'translation_baseline' => json_encode($entry->settings['translations'] ?? []),
             'slug' => $entry->path === null ? null : Str::afterLast($entry->path, '/'),
             'is_published' => (bool) $entry->is_published,
             'fields' => self::toForm(self::definitions($type->getFields()), $entry->fieldValues()),
@@ -69,10 +98,35 @@ final class EntryForm
     {
         return [
             'title' => $data['title'] ?? null,
+            ...(isset($data['translations']) ? self::translationChanges($data) : []),
             ...(array_key_exists('slug', $data) ? ['slug' => $data['slug']] : []),
             'is_published' => (bool) ($data['is_published'] ?? false),
             'fields' => self::fromForm(self::definitions($type->getFields()), is_array($data['fields'] ?? null) ? $data['fields'] : [], $entry?->fieldValues() ?? []),
         ];
+    }
+
+    private static function translationValue(mixed $value): mixed
+    {
+        return $value === '' ? null : $value;
+    }
+
+    private static function translationChanges(array $data): array
+    {
+        $baseline = is_string($data['translation_baseline'] ?? null) ? json_decode($data['translation_baseline'], true) : ($data['translation_baseline'] ?? []);
+        $baseline = is_array($baseline) ? $baseline : [];
+        $changes = [];
+        foreach ($data['translations'] as $locale => $values) {
+            if (array_key_exists('title', $values) && self::translationValue($values['title']) !== self::translationValue($baseline[$locale]['title'] ?? null)) {
+                $changes[$locale]['title'] = $values['title'];
+            }
+            foreach ($values['fields'] ?? [] as $field => $value) {
+                if (self::translationValue($value) !== self::translationValue($baseline[$locale]['fields'][$field] ?? null)) {
+                    $changes[$locale]['fields'][$field] = $value;
+                }
+            }
+        }
+
+        return ['translations' => $changes, 'translation_baseline' => $baseline];
     }
 
     /**

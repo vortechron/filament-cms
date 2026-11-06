@@ -32,7 +32,7 @@ final class SectionLibrary
      */
     public function save(array $section, string $title, bool $synced, ?Authenticatable $user, bool $developer): array
     {
-        $document = new Document(['kind' => $synced ? Document::SECTION : Document::TEMPLATE, 'title' => $title]);
+        $document = new Document(['kind' => $synced ? Document::SECTION : Document::TEMPLATE, 'title' => $title, 'locale' => SiteLanguages::enabled() ? SiteLanguages::current() : null]);
         $result = $this->store->save($document, ['version' => PageValue::VERSION, 'sections' => [$section]], $user, $developer);
 
         if (! $result['ok']) {
@@ -47,7 +47,7 @@ final class SectionLibrary
      */
     public function synced(): Collection
     {
-        return Document::query()->ofKind(Document::SECTION)->orderBy('title')->get()
+        return Document::query()->ofKind(Document::SECTION)->inLanguage()->orderBy('title')->get()
             ->filter(fn (Document $document): bool => self::firstSection($document) !== null)
             ->values();
     }
@@ -59,7 +59,7 @@ final class SectionLibrary
      */
     public function templates(): array
     {
-        return Document::query()->ofKind(Document::TEMPLATE)->orderBy('title')->get()
+        return Document::query()->ofKind(Document::TEMPLATE)->inLanguage()->orderBy('title')->get()
             ->map(fn (Document $document): ?array => self::template($document))
             ->filter()
             ->values()

@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
+use Vortechron\FilamentCms\SiteLanguages;
 
 /**
  * A page the client builds in the page builder, shown at its own address:
@@ -51,7 +52,7 @@ class SitePage extends Document
      */
     public static function home(): ?self
     {
-        return static::query()->where('path', '/')->first();
+        return static::query()->inLanguage()->where('path', SiteLanguages::path('/', SiteLanguages::current()))->first();
     }
 
     public function url(): string

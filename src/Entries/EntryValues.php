@@ -23,8 +23,8 @@ final class EntryValues
     public static function of(Entry $entry): array
     {
         $type = $entry->definition();
-        $stored = $entry->fieldValues();
-        $values = ['entry.title' => (string) $entry->title, 'entry.url' => $type?->getPath() === null ? null : $entry->url()];
+        $stored = $entry->translatedFieldValues();
+        $values = ['entry.title' => $entry->translatedTitle(), 'entry.url' => $type?->getPath() === null ? null : $entry->url()];
 
         foreach (self::fields($type) as $field) {
             $values["entry.{$field['name']}"] = self::value($field, $stored[$field['name']] ?? null);

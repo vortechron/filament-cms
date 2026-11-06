@@ -13,6 +13,7 @@ class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory;
+
     use HasRoles;
 
     protected $guarded = [];

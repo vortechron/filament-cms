@@ -98,6 +98,9 @@ final class FormLocator
      */
     private static function sectionsOf(?Document $document, bool $shownOnly): array
     {
+        if ($shownOnly && $document?->cmsKind()?->isPart() === true && ! $document->isPublicPart()) {
+            return [];
+        }
         $sections = $document?->contentSections() ?? [];
 
         return $shownOnly ? PageContent::visible($sections) : $sections;
