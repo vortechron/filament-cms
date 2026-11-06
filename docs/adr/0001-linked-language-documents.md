@@ -1,5 +1,7 @@
 # Linked language documents
 
+Status: superseded for new and explicitly converted documents by [ADR 0002](0002-shared-layout-text.md). Legacy groups keep this storage until conversion.
+
 A website page has one package allowance and a separate document for each language.
 Each language document retains the existing page JSON format, save guards and revision key.
 Existing documents remain the default language, with their identifiers and addresses intact.

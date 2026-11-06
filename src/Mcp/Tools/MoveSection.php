@@ -38,12 +38,13 @@ class MoveSection extends Tool
             array_splice($sections, min((int) $request->get('index'), count($sections)), 0, [$section]);
 
             return $sections;
-        }, ['section_id' => $sectionId]);
+        }, ['section_id' => $sectionId], $request->get('expected_version'));
     }
 
     public function schema(JsonSchema $schema): array
     {
         return [
+            'expected_version' => $schema->integer()->description('Required for shared documents: edit_version from get_document.'),
             'document_id' => $schema->integer()->required()->description('The document id.'),
             'section_id' => $schema->string()->required()->description('The id of the section to move.'),
             'index' => $schema->integer()->required()->description('Its new place, from 0 (the top).'),

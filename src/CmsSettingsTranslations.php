@@ -33,7 +33,7 @@ final class CmsSettingsTranslations
         foreach (self::fields() as $section => $fields) {
             foreach ($fields as $field) {
                 $value = $saved[$section][$field] ?? null;
-                if (is_string($value) && $value !== '') {
+                if (is_string($value)) {
                     $base[$section][$field] = $value;
                 }
             }
@@ -42,7 +42,7 @@ final class CmsSettingsTranslations
         return $base;
     }
 
-    public function save(string $locale, array $values, ?Authenticatable $user = null): void
+    public function save(string $locale, array $values, ?Authenticatable $user = null, ?array $expectedValues = null): void
     {
         SiteLanguages::check($locale);
         if ($locale === SiteLanguages::default()) {
@@ -59,9 +59,20 @@ final class CmsSettingsTranslations
             }
         }
         Validator::make($values, $rules)->validate();
-        DB::transaction(function () use ($locale, $values, $user): void {
+        DB::transaction(function () use ($locale, $values, $user, $expectedValues): void {
+            // A stable existing row also serializes the first translated-text write.
+            CmsContent::query()->insertOrIgnore(['key' => 'settings:'.$locale, 'content' => '{}', 'created_at' => now(), 'updated_at' => now()]);
             $row = CmsContent::where('key', 'settings:'.$locale)->lockForUpdate()->first();
             $saved = $row?->content ?? [];
+            if ($expectedValues !== null) {
+                foreach ($values as $section => $fields) {
+                    foreach ($fields as $field => $value) {
+                        if (($saved[$section][$field] ?? null) !== ($expectedValues[$section][$field] ?? null)) {
+                            throw ValidationException::withMessages(['translations' => __('filament-cms::languages.changed')]);
+                        }
+                    }
+                }
+            }
             foreach ($values as $section => $fields) {
                 $saved[$section] = array_replace($saved[$section] ?? [], $fields);
             }

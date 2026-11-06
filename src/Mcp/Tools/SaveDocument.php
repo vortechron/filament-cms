@@ -11,6 +11,7 @@ use Laravel\Mcp\Server\Tool;
 use Vortechron\FilamentCms\Documents\CmsKind;
 use Vortechron\FilamentCms\Mcp\Documents;
 use Vortechron\FilamentCms\Mcp\DocumentWriter;
+use Vortechron\FilamentCms\Mcp\Input;
 use Vortechron\FilamentCms\Mcp\Reply;
 
 #[Name('save_document')]
@@ -25,13 +26,16 @@ class SaveDocument extends Tool
             return $document;
         }
 
+        if ($errors = Input::errors($request->all(), ['expected_version' => ['sometimes', 'integer', 'min:0']])) {
+            return Reply::refused($errors);
+        }
         $value = DocumentWriter::value($request->all());
 
         if (is_string($value)) {
             return Reply::refuse('value', $value);
         }
 
-        $result = $writer->save($document, $value, $request->all(['title', 'path', 'published', 'seo']));
+        $result = $writer->save($document, $value, $request->all(['title', 'path', 'published', 'seo']), $request->get('expected_version') === null ? null : (int) $request->get('expected_version'));
 
         return Reply::fromResult($result);
     }
@@ -39,6 +43,7 @@ class SaveDocument extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
+            'expected_version' => $schema->integer()->description('Required for shared documents: edit_version from get_document. Reload after a conflict.'),
             'id' => $schema->integer()->required()->description('The document id.'),
             'value' => $schema->object()->description('The whole new value: {"version": 2, "sections": [...]}. Leave it out to change only the title, path, published flag or SEO words.'),
             'title' => $schema->string()->description('The title shown in the panel (and the page title), at most 120 characters.'),

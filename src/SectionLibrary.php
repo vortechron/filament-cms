@@ -3,6 +3,7 @@
 namespace Vortechron\FilamentCms;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
@@ -30,16 +31,16 @@ final class SectionLibrary
      * @param  array<string, mixed>  $section
      * @return array<string, mixed>
      */
-    public function save(array $section, string $title, bool $synced, ?Authenticatable $user, bool $developer): array
+    public function save(array $section, string $title, bool $synced, ?Authenticatable $user, bool $developer, array $translations = []): array
     {
         $document = new Document(['kind' => $synced ? Document::SECTION : Document::TEMPLATE, 'title' => $title, 'locale' => SiteLanguages::enabled() ? SiteLanguages::current() : null]);
-        $result = $this->store->save($document, ['version' => PageValue::VERSION, 'sections' => [$section]], $user, $developer);
+        $result = $this->store->save($document, ['version' => PageValue::VERSION, 'sections' => [$section], ...($translations === [] ? [] : ['translations' => $translations])], $user, $developer);
 
         if (! $result['ok']) {
             return $result;
         }
 
-        return ['ok' => true, 'id' => $document->getKey(), 'template' => $synced ? null : self::template($document)];
+        return ['ok' => true, 'id' => $document->getKey(), ...self::builderValue($document), 'template' => $synced ? null : self::template($document)];
     }
 
     /**
@@ -47,7 +48,7 @@ final class SectionLibrary
      */
     public function synced(): Collection
     {
-        return Document::query()->ofKind(Document::SECTION)->inLanguage()->orderBy('title')->get()
+        return $this->available(Document::SECTION)
             ->filter(fn (Document $document): bool => self::firstSection($document) !== null)
             ->values();
     }
@@ -59,11 +60,35 @@ final class SectionLibrary
      */
     public function templates(): array
     {
-        return Document::query()->ofKind(Document::TEMPLATE)->inLanguage()->orderBy('title')->get()
+        return $this->available(Document::TEMPLATE)
             ->map(fn (Document $document): ?array => self::template($document))
             ->filter()
             ->values()
             ->all();
+    }
+
+    /** Shared roots appear once in every language; legacy versions keep their locale filter. */
+    private function available(string $kind): Collection
+    {
+        $shared = Document::query()->select('id')->whereNull('translation_of')->where('shared_format', 1);
+
+        return Document::query()->ofKind($kind)
+            ->where(fn (Builder $query) => $query->inLanguage()->orWhere('shared_format', 1))
+            ->where(fn (Builder $query) => $query->whereNull('translation_of')->orWhereNotIn('translation_of', $shared))
+            ->orderBy('title')->get();
+    }
+
+    /** Canonical section and its language maps for preview and saved copies. */
+    public static function builderValue(Document $document): array
+    {
+        $translations = app(DocumentTranslations::class);
+        $root = $translations->root($document);
+        if (! $root->shared_format) {
+            return ['section' => self::firstSection($document)];
+        }
+        $value = $translations->editorValue($root);
+
+        return ['section' => $value['sections'][0] ?? null, 'translations' => $value['translations'] ?? []];
     }
 
     /**
@@ -97,14 +122,14 @@ final class SectionLibrary
      */
     private static function template(Document $document): ?array
     {
-        $section = self::firstSection($document);
+        $value = self::builderValue($document);
 
-        return $section === null ? null : [
+        return $value['section'] === null ? null : [
             'key' => 'saved-'.$document->getKey(),
             'label' => (string) $document->title,
             'category' => self::CATEGORY,
             'description' => '',
-            'section' => $section,
+            ...$value,
         ];
     }
 }

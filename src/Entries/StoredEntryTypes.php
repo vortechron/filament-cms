@@ -283,6 +283,7 @@ final class StoredEntryTypes
                 'name' => Str::lower(trim((string) ($field['name'] ?? ''))),
                 'label' => trim((string) ($field['label'] ?? '')),
                 'type' => $type,
+                ...(array_key_exists('translatable', $field) && is_bool($field['translatable']) ? ['translatable' => $field['translatable']] : []),
                 'options' => $type === 'select' ? trim((string) ($field['options'] ?? '')) : '',
                 ...($type === 'entry' ? ['target' => Str::lower(trim((string) ($field['target'] ?? '')))] : []),
             ];
@@ -319,6 +320,9 @@ final class StoredEntryTypes
             default => throw new InvalidArgumentException('An entry field is one of '.implode(', ', self::FIELD_TYPES).". Got [{$field['type']}]."),
         };
 
+        if (array_key_exists('translatable', $field) && is_bool($field['translatable'])) {
+            $made->translatable($field['translatable']);
+        }
         $label = trim((string) ($field['label'] ?? ''));
 
         return $label === '' ? $made : $made->label($label);

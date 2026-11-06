@@ -34,7 +34,8 @@ class ListVersions extends Tool
             'id' => $version->getKey(),
             'saved_at' => $version->created_at?->toIso8601String(),
             'user' => $version->user === null ? null : ['name' => $version->user->getAttribute('name'), 'email' => $version->user->getAttribute('email')],
-            'current' => $version->content === $document->content,
+            'current' => $version->content === (($version->content['shared_format'] ?? null) === 1 ? ['shared_format' => 1, 'text_overrides' => $document->text_overrides] : $document->content),
+            'scope' => ($version->content['shared_format'] ?? null) === 1 ? 'text' : 'document',
             ...($document->kind === Document::KIT ? [] : ['outline' => SectionEditor::outline(Document::sectionsOf($version->content))]),
             ...($document->kind === Document::ENTRY ? ['fields' => is_array($version->content['fields'] ?? null) ? $version->content['fields'] : []] : []),
         ])->all()]);

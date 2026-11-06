@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Mcp;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentBlockEditor\Design\Kit;
 use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
+use Vortechron\FilamentCms\DocumentTranslations;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\SiteLanguages;
 
@@ -24,6 +25,7 @@ final class DocumentInfo
             'id' => $document->getKey(),
             'kind' => $document->kind,
             ...(SiteLanguages::enabled() ? ['locale' => $document->language(), 'translation_root' => $document->translationRootId()] : []),
+            ...(($root = app(DocumentTranslations::class)->root($document))->shared_format ? ['shared_format' => $root->shared_format, 'edit_version' => $root->edit_version] : []),
             'title' => (string) $document->title,
             'path' => $document->path,
             'published' => (bool) $document->is_published,
@@ -66,7 +68,7 @@ final class DocumentInfo
         return match ($document->kind) {
             Document::KIT => Kit::normalize($content),
             Document::ENTRY => [...PageValue::upgrade($content), 'sections' => $document->contentSections()],
-            default => PageValue::normalize($content),
+            default => $document->translation_of ? app(DocumentTranslations::class)->resolvedValue($document) : app(DocumentTranslations::class)->editorValue($document),
         };
     }
 }

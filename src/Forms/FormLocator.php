@@ -7,8 +7,11 @@ use Vortechron\FilamentBlockEditor\BlockNote\Blocks;
 use Vortechron\FilamentBlockEditor\Content\PageContent;
 use Vortechron\FilamentBlockEditor\Content\SectionResolver;
 use Vortechron\FilamentBlockEditor\Forms\FormDefinition;
+use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
+use Vortechron\FilamentCms\DocumentTranslations;
 use Vortechron\FilamentCms\Entries\EntryTemplates;
 use Vortechron\FilamentCms\Models\Document;
+use Vortechron\FilamentCms\SiteLanguages;
 
 /**
  * Finds the stored form block a visitor sent, by its `_form` key
@@ -30,6 +33,13 @@ final class FormLocator
      *                           panel's labels for an older submission)
      */
     public function find(Document $document, mixed $key, bool $shownOnly = true): ?LocatedForm
+    {
+        $locale = $document->kind === Document::ENTRY ? SiteLanguages::current() : $document->language();
+
+        return ContentLocale::with($locale, fn (): ?LocatedForm => $this->findInLanguage($document, $key, $shownOnly));
+    }
+
+    private function findInLanguage(Document $document, mixed $key, bool $shownOnly): ?LocatedForm
     {
         if (! is_string($key) || strlen($key) > 100 || preg_match(self::KEY, $key, $match) !== 1) {
             return null;
@@ -101,7 +111,9 @@ final class FormLocator
         if ($shownOnly && $document?->cmsKind()?->isPart() === true && ! $document->isPublicPart()) {
             return [];
         }
-        $sections = $document?->contentSections() ?? [];
+        $sections = $document?->cmsKind()?->isPart() === true
+            ? Document::sectionsOf(app(DocumentTranslations::class)->resolvedValue($document, SiteLanguages::current()))
+            : ($document?->contentSections() ?? []);
 
         return $shownOnly ? PageContent::visible($sections) : $sections;
     }

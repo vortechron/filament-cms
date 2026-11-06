@@ -115,7 +115,9 @@ class SiteSectionResource extends Resource
                     ->icon(Heroicon::OutlinedPaintBrush)
                     ->button()
                     ->url(fn (Document $record): string => BuildSitePage::getUrl(['record' => $record])),
-                EditAction::make()->label(__('filament-cms::sections.rename')),
+                EditAction::make()->label(__('filament-cms::sections.rename'))
+                    ->mutateRecordDataUsing(fn (Document $record, ManageSiteSections $livewire): array => $livewire->rememberVersion($record))
+                    ->using(fn (Document $record, array $data, ManageSiteSections $livewire): Document => $livewire->rename($record, $data)),
                 DeleteAction::make()->modalDescription(fn (Document $record): string => self::deleteWarning($record)),
             ]);
     }

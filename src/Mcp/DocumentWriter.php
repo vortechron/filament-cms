@@ -2,7 +2,6 @@
 
 namespace Vortechron\FilamentCms\Mcp;
 
-use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\SiteLanguages;
@@ -22,7 +21,7 @@ final class DocumentWriter
      * @param  array<string, mixed>  $meta  `title`, `path`, `published`, `seo` (`title`, `description`), each optional
      * @return array{ok: bool, errors?: array<string, string>, url?: string}
      */
-    public function save(Document $document, ?array $value, array $meta): array
+    public function save(Document $document, ?array $value, array $meta, ?int $expectedVersion = null): array
     {
         if (SiteLanguages::enabled() && $document->kind === Document::PAGE && is_string($meta['path'] ?? null)) {
             $meta['path'] = SiteLanguages::path($meta['path'], $document->language());
@@ -35,7 +34,9 @@ final class DocumentWriter
 
         $this->fill($document, $meta);
 
-        $result = $this->store->save($document, $value ?? $this->stored($document), McpActor::user(), developer: true);
+        $result = $value === null && $document->exists
+            ? $this->store->saveMetadata($document, $document->getDirty(), McpActor::user(), $expectedVersion)
+            : $this->store->save($document, $value ?? $this->stored($document), McpActor::user(), developer: true, expectedVersion: $expectedVersion);
 
         return $result['ok'] && $document->kind === Document::PAGE ? [...$result, 'url' => $document->url()] : $result;
     }
@@ -118,6 +119,6 @@ final class DocumentWriter
      */
     private function stored(Document $document): array
     {
-        return is_array($document->content) ? $document->content : ['version' => PageValue::VERSION, 'sections' => []];
+        return DocumentInfo::value($document);
     }
 }

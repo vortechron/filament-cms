@@ -41,6 +41,9 @@ class ManageEntries extends ManageRecords
     #[Locked]
     public string $type = '';
 
+    #[Locked]
+    public array $translationBaselines = [];
+
     public function mount(string $type = ''): void
     {
         abort_unless(app(EntryTypes::class)->has($type), 404);
@@ -91,8 +94,13 @@ class ManageEntries extends ManageRecords
                     ->visible(fn (Entry $record): bool => $type->hasBody() && $this->plugin()->hasSitePages() && BuildSitePage::mayBuild($record))
                     ->url(fn (Entry $record): string => BuildSitePage::getUrl(['record' => $record])),
                 EditAction::make()
-                    ->mutateRecordDataUsing(fn (Entry $record): array => EntryForm::fill($type, $record))
-                    ->using(fn (Entry $record, array $data): Entry => $this->saveEntry($record, EntryForm::data($type, $data, $record))),
+                    ->mutateRecordDataUsing(function (Entry $record) use ($type): array {
+                        $data = EntryForm::fill($type, $record);
+                        $this->translationBaselines[$record->getKey()] = $data['translation_baseline'];
+
+                        return $data;
+                    })
+                    ->using(fn (Entry $record, array $data): Entry => $this->saveEntry($record, EntryForm::data($type, [...$data, 'translation_baseline' => $this->translationBaselines[$record->getKey()] ?? '{}'], $record))),
                 $this->publishAction('publish', true),
                 $this->publishAction('unpublish', false),
                 DeleteAction::make(),

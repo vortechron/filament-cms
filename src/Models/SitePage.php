@@ -5,6 +5,7 @@ namespace Vortechron\FilamentCms\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
+use Vortechron\FilamentCms\DocumentTranslations;
 use Vortechron\FilamentCms\SiteLanguages;
 
 /**
@@ -32,7 +33,7 @@ class SitePage extends Document
     protected function sections(): Attribute
     {
         return Attribute::make(
-            get: fn (): array => PageValue::upgrade($this->content ?? [])['sections'] ?? [],
+            get: fn (): array => app(DocumentTranslations::class)->resolvedValue($this)['sections'] ?? [],
             set: fn (?array $value): array => ['content' => json_encode(['version' => PageValue::VERSION, 'sections' => array_values($value ?? [])])],
         );
     }

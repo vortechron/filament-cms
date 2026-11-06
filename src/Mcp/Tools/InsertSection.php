@@ -40,12 +40,13 @@ class InsertSection extends Tool
             array_splice($sections, $index, 0, [[...$section, 'id' => $id]]);
 
             return $sections;
-        }, ['section_id' => $id]);
+        }, ['section_id' => $id], $request->get('expected_version'));
     }
 
     public function schema(JsonSchema $schema): array
     {
         return [
+            'expected_version' => $schema->integer()->description('Required for shared documents: edit_version from get_document.'),
             'document_id' => $schema->integer()->required()->description('The document id.'),
             'section' => $schema->object()->required()->description('The new section: {"type": "rich", "data": {...}} or {"type": "ref", "ref": 12}. See page_format.'),
             'index' => $schema->integer()->description('Where it goes, from 0 (the top). Default: the end.'),

@@ -14,7 +14,7 @@ final class EntryTranslations
 {
     public static function fields(Entry $entry): array
     {
-        return array_values(array_filter($entry->definition()?->getFields() ?? [], fn ($field): bool => in_array($field->type, ['text', 'textarea'], true)));
+        return array_values(array_filter($entry->definition()?->getFields() ?? [], fn ($field): bool => $field->isTranslatable()));
     }
 
     public function validate(Entry $entry, string $locale, array $values): void

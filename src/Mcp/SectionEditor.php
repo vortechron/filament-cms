@@ -66,9 +66,9 @@ final class SectionEditor
      * @param  list<array<string, mixed>>  $sections
      * @param  array<string, mixed>  $extra
      */
-    public function save(Document $document, array $sections, array $extra = []): ResponseFactory
+    public function save(Document $document, array $sections, array $extra = [], ?int $expectedVersion = null): ResponseFactory
     {
-        $result = $this->writer->save($document, ['version' => PageValue::VERSION, 'sections' => array_values($sections)], []);
+        $result = $this->writer->save($document, ['version' => PageValue::VERSION, 'sections' => array_values($sections)], [], $expectedVersion);
 
         return Reply::fromResult($result, fn (): array => [...$extra, 'sections' => self::outline(self::stored($document))]);
     }
@@ -97,8 +97,11 @@ final class SectionEditor
      *
      * @param  Closure(list<array<string, mixed>>, Document): (list<array<string, mixed>>|ResponseFactory)  $change
      */
-    public function edit(mixed $documentId, Closure $change, array $extra = []): ResponseFactory
+    public function edit(mixed $documentId, Closure $change, array $extra = [], mixed $expectedVersion = null): ResponseFactory
     {
+        if ($errors = Input::errors(['expected_version' => $expectedVersion], ['expected_version' => ['nullable', 'integer', 'min:0']])) {
+            return Reply::refused($errors);
+        }
         $document = self::document($documentId);
 
         if ($document instanceof ResponseFactory) {
@@ -107,6 +110,6 @@ final class SectionEditor
 
         $sections = $change(self::stored($document), $document);
 
-        return $sections instanceof ResponseFactory ? $sections : $this->save($document, $sections, $extra);
+        return $sections instanceof ResponseFactory ? $sections : $this->save($document, $sections, $extra, $expectedVersion === null ? null : (int) $expectedVersion);
     }
 }

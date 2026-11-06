@@ -31,7 +31,7 @@ Both packages install from GitHub (they are not on Packagist):
 ```bash
 composer config repositories.vortechron-cms vcs https://github.com/vortechron/filament-cms.git
 composer config repositories.vortechron-block-editor vcs https://github.com/vortechron/filament-block-editor.git
-composer require vortechron/filament-cms:^0.13
+composer require vortechron/filament-cms:^0.14
 php artisan vendor:publish --tag=filament-cms-config
 php artisan migrate
 php artisan storage:link
@@ -549,30 +549,79 @@ Set `filament-cms.locales` to `['ms' => 'Bahasa Melayu', 'en' => 'English']`
 and `default_locale` to `ms`. Existing rows with no locale are the default language;
 no page content or old address is rewritten by the language migration.
 
-The builder language menu opens a linked document, or copies the current document
-into a new draft once. Each version keeps its own title, full path (for example
-`/en/contact`), publish flag, content and version history. Copies count as one page
-for `max_pages`. The design kit and media are shared. Later layout edits are independent.
-Public routes and form submissions use the document language; owner emails keep the
-panel language. Secondary-language header/footer drafts are hidden outside previews.
+New documents use one shared layout and default-language text. Each visitor text field
+can have an optional translation. A missing translation falls back to the default;
+an intentional blank stays blank. Page layout, theme colours, block styling, media,
+form field names, action targets and other business facts remain shared. Rich-text
+formatting and inline links belong to each language, so Malay and English sentences
+can use different bold words and link placements. Use `Field::translatable(false)` for
+text fields that hold facts such as an SKU. Stored entry-type field definitions also
+accept `translatable: false`.
 
-`DocumentTranslations::create($document, 'en', $user)` is the same trusted copy path
-used by the authorized builder and `create_document` MCP tool (`translation_of`, `locale`).
-MCP summaries expose `locale` and `translation_root`; existing ids still select the
-same saved language. Save, section and restore tools therefore cannot overwrite a
-counterpart. A language switch must use `SiteLanguages::links($page)`, which includes
-only published counterparts, rather than prefixing the current URL.
+Existing full language documents remain readable until explicitly converted. The
+schema migration adds storage only; neither reading a page nor opening the panel
+converts it. `DocumentTranslations::checkConversion($document)` compares fresh
+language layouts without writing. `convert($document)` repeats that check under a
+root lock, then stores one canonical layout on the root (`shared_format = 1`) and
+text maps in each linked row's `text_overrides`. It refuses unknown content and
+conflicting layouts. It never chooses which conflicting layout to keep. Equivalent
+registered defaults and known internal language links can be shared. Conversion is
+idempotent, retains every actual translated string including equal and blank text,
+and leaves existing revisions unchanged. Back up and preflight all groups before
+calling conversion from an application's migration command.
+
+Linked rows retain their IDs, title, full path (for example `/en/contact`), publish
+flag, SEO and revision key. English contact ID 39 therefore keeps its old form
+endpoint. They do not retain an independent complete layout after conversion.
+Copies count as one page for `max_pages`. Secondary-language header/footer drafts
+stay private; the original default-language part publishing rule is unchanged.
+A language switch uses `SiteLanguages::links($page)` and includes only published
+counterparts.
+
+Use `DocumentTranslations::editorValue($document)` for the root layout with
+`translations[locale]` text maps. Use `resolvedValue($document, $locale = null)`
+for localized content; the default is the document's language, or the current
+visitor language for an entry body. `contentSections()` resolves through the same
+boundary. Public pages, previews, parts, synced sections, entry designs and forms
+must use these reads.
+
+Converted saves and restores require the root's current `edit_version`:
+
+```php
+$store->save($root, $value, $user, developer: true, expectedVersion: $version);
+$store->saveMetadata($root, [
+    'title' => 'Hubungi',
+    'translations' => ['en' => ['title' => 'Contact', 'path' => '/contact']],
+], $user, expectedVersion: $version);
+$store->restore($document, $revision, $user, expectedVersion: $version);
+```
+
+A successful converted write returns the new `edit_version`. The check and write
+share one root lock. Missing or stale versions refuse the entire write and ask the
+caller to reload. Metadata changes for all languages are checked before any save.
+Translated IDs accept their own text and metadata, and refuse layout changes.
+Text history remains independent. Restoring a root layout keeps the other language
+text; restoring a translated text version keeps the current layout. An old complete
+translated revision restores only text and is refused if its old layout differs.
+
+MCP `get_document` exposes the root `edit_version`; send it as `expected_version`
+to save, section-edit and restore tools. Old unversioned whole-document payloads
+cannot overwrite converted groups. Existing IDs still select the same language.
+`DocumentTranslations::create($document, 'en', $user)` creates an unpublished
+linked row; for a converted group it stores no second layout.
 
 Entries retain one identity and one set of prices, images and relationships.
 `EntryTranslations::save($entry, 'en', ['title' => 'Pencil', 'fields' =>
 ['description' => 'Wooden pencil']], $user)` changes optional text only. Their panel
-forms and MCP `save_entry` accept `translations` by locale. Empty text falls back
-to the original language. `translatedTitle()` and `translatedFieldValues()` read it;
+forms and MCP `save_entry` accept `translations` by locale. Absent or null text falls back
+to the original language; an explicit blank remains blank. `translatedTitle()` and `translatedFieldValues()` read it;
 entry dynamic values use those automatically.
 
 Settings translations are restricted by `translatable_settings` (section => field names).
 `CmsSettingsTranslations::save('en', ['hours' => ['note' => 'Closed Sunday']], $user)`
-keeps them under `settings:en`, with their own history. `cms_settings()` overlays them
+keeps them under `settings:en`, with their own history. Its optional fourth
+`expectedValues` argument compares touched fields against the form's saved baseline
+under a lock and refuses stale text. Explicit blanks remain blank. `cms_settings()` overlays them
 when rendering English. Settings has one translated-text action per secondary language;
 MCP `get_settings`/`save_settings` accept an optional `locale` for those text fields.
 Shop facts remain shared. Use `SiteLanguages::run($locale, $callback)` around non-HTTP

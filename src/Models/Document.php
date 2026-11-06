@@ -7,8 +7,10 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentBlockEditor\Content\PageValue;
 use Vortechron\FilamentCms\Documents\CmsKind;
+use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\DocumentTranslations;
 use Vortechron\FilamentCms\EntryTranslations;
 use Vortechron\FilamentCms\SiteLanguages;
@@ -61,7 +63,7 @@ class Document extends Model
 
     protected function casts(): array
     {
-        return ['content' => 'array', 'settings' => 'array', 'is_published' => 'boolean', 'sort' => 'integer'];
+        return ['content' => 'array', 'settings' => 'array', 'is_published' => 'boolean', 'sort' => 'integer', 'text_overrides' => 'array', 'shared_format' => 'integer', 'edit_version' => 'integer'];
     }
 
     public function language(): string
@@ -97,7 +99,7 @@ class Document extends Model
         $locale ??= SiteLanguages::current();
         $title = $this->settings['translations'][$locale]['title'] ?? null;
 
-        return $locale !== SiteLanguages::default() && is_string($title) && trim($title) !== '' ? $title : (string) $this->title;
+        return $locale !== SiteLanguages::default() && is_string($title) ? $title : (string) $this->title;
     }
 
     public function translatedFieldValues(?string $locale = null): array
@@ -113,7 +115,7 @@ class Document extends Model
         $allowed = array_map(fn ($field): string => $field->name, EntryTranslations::fields($this));
         $text = $this->settings['translations'][$locale]['fields'] ?? [];
 
-        return array_replace($fields, array_filter(array_intersect_key(is_array($text) ? $text : [], array_flip($allowed)), fn ($value): bool => is_string($value) && $value !== ''));
+        return array_replace($fields, array_filter(array_intersect_key(is_array($text) ? $text : [], array_flip($allowed)), fn ($value): bool => is_string($value)));
     }
 
     public function scopeInLanguage(Builder $query, ?string $locale = null): void
@@ -192,7 +194,12 @@ class Document extends Model
      */
     public static function firstOfKind(string $kind): ?self
     {
-        return static::query()->ofKind($kind)->when($kind !== self::KIT, fn (Builder $q) => $q->inLanguage())->oldest('id')->first();
+        $documents = static::query()->ofKind($kind)->oldest('id');
+        $localized = (clone $documents)->when($kind !== self::KIT, fn (Builder $q) => $q->inLanguage())->first();
+
+        return $localized ?? (SiteLanguages::enabled() && CmsKind::of($kind)?->isPart() === true
+            ? $documents->whereNull('translation_of')->where('shared_format', 1)->first()
+            : null);
     }
 
     /**
@@ -206,11 +213,19 @@ class Document extends Model
             return app(DocumentTranslations::class)->create($root, SiteLanguages::current());
         }
 
-        return self::firstOfKind($kind) ?? static::query()->create([
-            'kind' => $kind,
-            'title' => CmsKind::from($kind)->label(),
-            'content' => ['version' => PageValue::VERSION, 'sections' => []],
-        ]);
+        if ($existing = self::firstOfKind($kind)) {
+            return $existing;
+        }
+        if (! SiteLanguages::enabled()) {
+            return static::query()->create(['kind' => $kind, 'title' => CmsKind::from($kind)->label(), 'content' => ['version' => PageValue::VERSION, 'sections' => []]]);
+        }
+        $part = new static(['kind' => $kind, 'title' => CmsKind::from($kind)->label()]);
+        $result = app(DocumentStore::class)->save($part, ['version' => PageValue::VERSION, 'sections' => []], null, true);
+        if (! $result['ok']) {
+            throw ValidationException::withMessages($result['errors']);
+        }
+
+        return $part;
     }
 
     /**
@@ -238,7 +253,7 @@ class Document extends Model
      */
     public function contentSections(): array
     {
-        return self::sectionsOf($this->cmsKind()?->holdsSections() === false ? null : $this->content);
+        return self::sectionsOf($this->cmsKind()?->holdsSections() === false ? null : app(DocumentTranslations::class)->resolvedValue($this));
     }
 
     /**

@@ -9,18 +9,20 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Vortechron\FilamentCms\Access\CmsAccess;
+use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\BuildSitePage;
 use Vortechron\FilamentCms\Filament\Resources\SitePages\Pages\ManageSitePages;
 use Vortechron\FilamentCms\FilamentCmsPlugin;
@@ -28,7 +30,6 @@ use Vortechron\FilamentCms\Models\CmsRevision;
 use Vortechron\FilamentCms\Models\Document;
 use Vortechron\FilamentCms\Models\SitePage;
 use Vortechron\FilamentCms\SiteLanguages;
-use Vortechron\FilamentCms\SitePageStore;
 
 /**
  * The client's pages: a title and an address here, the content in the page
@@ -66,7 +67,9 @@ class SitePageResource extends Resource
     {
         return $schema
             ->components([
-                TextInput::make('title')->label(__('filament-cms::pages.title'))->required()->maxLength(120),
+                Text::make(__('filament-cms::languages.setup_needed'))
+                    ->visible(fn (?SitePage $record): bool => SiteLanguages::enabled() && $record !== null && $record->shared_format !== 1),
+                PageMetadata::text('title', __('filament-cms::pages.title'), 120, required: true),
                 TextInput::make('path')
                     ->label(__('filament-cms::pages.path'))
                     ->helperText(__('filament-cms::pages.path_help'))
@@ -84,11 +87,12 @@ class SitePageResource extends Resource
                         }
                     }),
                 Toggle::make('is_published')->label(__('filament-cms::pages.published'))->default(false),
+                ...PageMetadata::languageAddresses(),
                 Section::make(__('filament-cms::pages.seo'))
                     ->collapsed()
                     ->schema([
-                        TextInput::make('seo_title')->label(__('filament-cms::settings.seo_title'))->maxLength(70),
-                        Textarea::make('seo_description')->label(__('filament-cms::settings.seo_description'))->rows(2)->maxLength(170),
+                        PageMetadata::text('seo_title', __('filament-cms::settings.seo_title'), 70),
+                        PageMetadata::text('seo_description', __('filament-cms::settings.seo_description'), 170, multiline: true),
                     ]),
             ])
             ->columns(1);
@@ -97,6 +101,7 @@ class SitePageResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->whereNull('translation_of'))
             ->defaultSort('path')
             ->columns([
                 TextColumn::make('title')->label(__('filament-cms::pages.title'))->searchable(),
@@ -104,7 +109,10 @@ class SitePageResource extends Resource
                 TextColumn::make('path')
                     ->label(__('filament-cms::pages.path'))
                     ->url(fn (SitePage $record): string => $record->url(), shouldOpenInNewTab: true),
-                ToggleColumn::make('is_published')->label(__('filament-cms::pages.published')),
+                ToggleColumn::make('is_published')->label(__('filament-cms::pages.published'))
+                    ->state(fn (SitePage $record, ManageSitePages $livewire): bool => $livewire->publicationState($record))
+                    ->disabled(fn (SitePage $record): bool => ! static::canEdit($record))
+                    ->updateStateUsing(fn (SitePage $record, bool $state, ManageSitePages $livewire): bool => $livewire->savePublication($record, $state)),
                 TextColumn::make('updated_at')->label(__('filament-cms::pages.updated'))->since()->sortable(),
             ])
             ->recordUrl(fn (SitePage $record): string => BuildSitePage::getUrl(['record' => $record]))
@@ -114,7 +122,9 @@ class SitePageResource extends Resource
                     ->icon(Heroicon::OutlinedPaintBrush)
                     ->button()
                     ->url(fn (SitePage $record): string => BuildSitePage::getUrl(['record' => $record])),
-                EditAction::make(),
+                EditAction::make()
+                    ->mutateRecordDataUsing(fn (SitePage $record, ManageSitePages $livewire): array => $livewire->metadataForEdit($record))
+                    ->using(fn (SitePage $record, array $data, ManageSitePages $livewire): SitePage => $livewire->saveMetadata($record, $data)),
                 static::restoreAction(),
                 DeleteAction::make(),
             ]);
@@ -131,6 +141,11 @@ class SitePageResource extends Resource
             ->color('gray')
             ->visible(fn (): bool => FilamentCmsPlugin::get()->isDeveloper(Filament::auth()->user()))
             ->modalSubmitActionLabel(__('filament-cms::cms.restore_submit'))
+            ->fillForm(function (SitePage $record, ManageSitePages $livewire): array {
+                $livewire->metadataForEdit($record);
+
+                return [];
+            })
             ->schema(fn (SitePage $record): array => [
                 Select::make('revision')
                     ->label(__('filament-cms::cms.revision'))
@@ -138,10 +153,15 @@ class SitePageResource extends Resource
                     ->in(fn (): array => array_keys(self::revisionOptions($record)))
                     ->required(),
             ])
-            ->action(function (SitePage $record, array $data): void {
+            ->action(function (SitePage $record, array $data, ManageSitePages $livewire): void {
+                abort_unless(static::canEdit($record) && FilamentCmsPlugin::get()->isDeveloper(Filament::auth()->user()), 403);
                 $revision = CmsRevision::query()->where('key', $record->revisionKey())->findOrFail($data['revision']);
-                app(SitePageStore::class)->restore($record, $revision, Filament::auth()->user());
+                $result = app(DocumentStore::class)->restore($record, $revision, Filament::auth()->user(), expectedVersion: $livewire->metadataBaselines[$record->getKey()]['version'] ?? null);
+                if (! $result['ok']) {
+                    $livewire->refuseSave($result['errors'] ?? []);
+                }
 
+                $livewire->tableVersions[$record->getKey()] = $result['edit_version'] ?? (int) $record->edit_version;
                 Notification::make()->success()->title(__('filament-cms::cms.restored'))->send();
             });
     }

@@ -8,6 +8,7 @@ use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Vortechron\FilamentBlockEditor\Design\KitSource;
@@ -60,11 +61,33 @@ class BuildSitePage extends Page
     #[Locked]
     public array $siteInfoBaseline = [];
 
+    #[Locked]
+    public array $siteInfoTranslationBaseline = [];
+
+    #[Locked]
+    public string $previewLocale = '';
+
+    #[Locked]
+    public ?int $editVersion = null;
+
+    #[Locked]
+    public bool $sharedText = false;
+
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
         $this->authorizePageBuilder();
-        $this->siteInfoBaseline = ContentLocale::with($this->record->language(), fn (): array => $this->getPageBuilderSiteInfo()['values'] ?? []);
+        $locale = request()->query('locale', $this->record->language());
+        $this->previewLocale = is_string($locale) && isset(SiteLanguages::labels()[$locale]) ? $locale : $this->record->language();
+        $root = app(DocumentTranslations::class)->root($this->record);
+        $this->sharedText = $root->shared_format === 1;
+        if ($this->sharedText) {
+            $this->record = $this->record->cmsKind()->model()::findOrFail($root->getKey());
+            $this->editVersion = (int) $root->edit_version;
+        }
+        $info = ContentLocale::with($this->previewLocale, fn (): array => $this->getPageBuilderSiteInfo() ?? []);
+        $this->siteInfoBaseline = $info['values'] ?? [];
+        $this->siteInfoTranslationBaseline = $info['translations'] ?? [];
     }
 
     protected function resolveRecord(int|string $key): Model
@@ -73,6 +96,10 @@ class BuildSitePage extends Page
             // Check before the part is made, not after.
             abort_unless(self::mayBuild(null), 403);
 
+            $root = SiteLanguages::run(SiteLanguages::default(), fn () => Document::firstOfKind((string) $key));
+            if ($root?->shared_format === 1) {
+                return $root;
+            }
             $locale = request()->query('locale', SiteLanguages::default());
             if (SiteLanguages::enabled()) {
                 SiteLanguages::check(is_string($locale) ? $locale : '');
@@ -182,17 +209,25 @@ class BuildSitePage extends Page
 
     protected function getPageBuilderValue(): array
     {
-        return is_array($this->record->content) ? $this->record->content : [];
+        return $this->sharedText ? app(DocumentTranslations::class)->editorValue($this->record) : (is_array($this->record->content) ? $this->record->content : []);
     }
 
     protected function getPageBuilderContentLocale(): string
     {
-        return $this->record->language();
+        return $this->previewLocale ?: $this->record->language();
+    }
+
+    protected function getPageBuilderFieldLanguages(): array
+    {
+        return $this->sharedText && SiteLanguages::enabled() ? [
+            'defaultLocale' => SiteLanguages::default(),
+            'locales' => array_map(fn (string $locale, string $label): array => ['locale' => $locale, 'label' => $label], array_keys(SiteLanguages::labels()), SiteLanguages::labels()),
+        ] : [];
     }
 
     protected function getPageBuilderLanguages(): array
     {
-        if (! SiteLanguages::enabled() || in_array($this->record->kind, [Document::KIT, Document::ENTRY], true)) {
+        if ($this->sharedText || ! SiteLanguages::enabled() || in_array($this->record->kind, [Document::KIT, Document::ENTRY], true)) {
             return [];
         }
 
@@ -215,7 +250,7 @@ class BuildSitePage extends Page
         abort_unless($this->record->translation($locale) !== null || $this->mayCreateTranslation(), 403);
         $translated = app(DocumentTranslations::class)->create($this->record, $locale, Filament::auth()->user());
 
-        return ['url' => static::getUrl(['record' => $translated->getKey()])];
+        return ['url' => static::getUrl(['record' => $this->sharedText ? $this->record->getKey() : $translated->getKey(), ...($this->sharedText ? ['locale' => $locale] : [])])];
     }
 
     private function mayCreateTranslation(): bool
@@ -236,9 +271,14 @@ class BuildSitePage extends Page
             return EntryBuilder::preview($this->record, $sections);
         }
 
-        return ($this->record instanceof SitePage
-            ? $renderer->view($this->record, $sections, forBuilder: true)
-            : $renderer->preview($this->record, $sections))->render();
+        $document = $this->sharedText ? ($this->record->translation(ContentLocale::site()) ?? $this->record) : $this->record;
+        if ($document->kind === Document::PAGE && ! $document instanceof SitePage) {
+            $document = SitePage::findOrFail($document->getKey());
+        }
+
+        return ($document instanceof SitePage
+            ? $renderer->view($document, $sections, forBuilder: true)
+            : $renderer->preview($document, $sections))->render();
     }
 
     protected function getPageBuilderBackUrl(): ?string
@@ -254,7 +294,9 @@ class BuildSitePage extends Page
 
     protected function getPageBuilderViewUrl(): ?string
     {
-        return $this->record->cmsKind()?->isRoutable() === true && $this->record->is_published ? $this->record->url() : null;
+        $document = $this->sharedText ? ($this->record->translation($this->previewLocale) ?? $this->record) : $this->record;
+
+        return $document->cmsKind()?->isRoutable() === true && $document->is_published ? $document->url() : null;
     }
 
     /**
@@ -282,6 +324,9 @@ class BuildSitePage extends Page
     protected function getPageBuilderRenderValues(): array
     {
         $page = $this->record instanceof SitePage ? $this->record : EntryBuilder::page($this->record);
+        if ($this->sharedText && $page !== null && ($selected = $page->translation(ContentLocale::site())) !== null) {
+            $page = SitePage::find($selected->getKey()) ?? $page;
+        }
         $pageValues = $page === null ? SitePageRenderer::homeValues() : SitePageRenderer::pageValues($page);
 
         return Arr::except([...$pageValues, ...EntryBuilder::entryValues($this->record)], CmsFormEndpoint::VALUE);
@@ -311,7 +356,7 @@ class BuildSitePage extends Page
         return array_map(fn (CmsKind $kind): array => [
             'key' => $kind->value,
             'title' => $kind->label(),
-            'editUrl' => static::getUrl(['record' => $kind->value, ...(SiteLanguages::enabled() ? ['locale' => $this->record->language()] : [])]),
+            'editUrl' => static::getUrl(['record' => $kind->value, ...(SiteLanguages::enabled() ? ['locale' => $this->previewLocale] : [])]),
         ], CmsKind::parts());
     }
 
@@ -329,7 +374,7 @@ class BuildSitePage extends Page
         }
 
         return SitePage::query()
-            ->inLanguage($this->record->language())
+            ->whereNull('translation_of')
             ->orderByRaw("path = '/' desc")
             ->orderBy('sort')
             ->orderBy('id')
@@ -363,7 +408,7 @@ class BuildSitePage extends Page
 
     protected function getPageBuilderSiteInfo(): ?array
     {
-        return $this->plugin()->hasParts() ? app(SiteInfo::class)->forBuilder() : null;
+        return $this->plugin()->hasParts() ? app(SiteInfo::class)->forBuilder(fieldLanguages: $this->sharedText) : null;
     }
 
     /**
@@ -381,7 +426,24 @@ class BuildSitePage extends Page
         return app(Cms::class)->withSettings(app(SiteInfo::class)->previewSettings($values), $draw);
     }
 
+    protected function withPageBuilderSiteInfoTranslations(array $values, array $translations, Closure $draw): string
+    {
+        if (! $this->sharedText) {
+            return $this->withPageBuilderSiteInfo($values, $draw);
+        }
+        if (! $this->plugin()->hasParts()) {
+            return $draw();
+        }
+
+        return app(Cms::class)->withSettings(app(SiteInfo::class)->previewSettings($values, $translations), $draw);
+    }
+
     protected function savePageBuilderSiteInfo(array $values): void
+    {
+        $this->savePageBuilderSiteInfoTranslations($values, []);
+    }
+
+    protected function savePageBuilderSiteInfoTranslations(array $values, array $translations): void
     {
         if (! $this->plugin()->hasParts()) {
             throw ValidationException::withMessages(['siteInfo' => __('filament-cms::documents.parts_off')]);
@@ -395,7 +457,30 @@ class BuildSitePage extends Page
                 }
             }
         }
-        SiteLanguages::run($this->record->language(), fn () => app(SiteInfo::class)->save($changes, Filament::auth()->user()));
+        DB::transaction(function () use ($changes, $translations): void {
+            $locale = $this->sharedText ? SiteLanguages::default() : $this->previewLocale;
+            SiteLanguages::run($locale, fn () => app(SiteInfo::class)->save($changes, Filament::auth()->user()));
+            foreach ($translations as $locale => $groups) {
+                $textChanges = [];
+                foreach ($groups as $group => $fields) {
+                    foreach ($fields as $field => $value) {
+                        if ($value !== ($this->siteInfoTranslationBaseline[$locale][$group][$field] ?? null)) {
+                            $textChanges[$group][$field] = $value;
+                        }
+                    }
+                }
+                if ($textChanges !== []) {
+                    app(SiteInfo::class)->saveTranslations($locale, $textChanges, Filament::auth()->user(), $this->siteInfoTranslationBaseline[$locale] ?? []);
+                }
+            }
+        });
+        foreach ($translations as $locale => $groups) {
+            foreach ($groups as $group => $fields) {
+                foreach ($fields as $field => $value) {
+                    $this->siteInfoTranslationBaseline[$locale][$group][$field] = $value;
+                }
+            }
+        }
         // React keeps the submitted values after saving. Keep the same
         // snapshot here, so a second save still sends only real edits.
         foreach ($values as $group => $fields) {
@@ -407,11 +492,18 @@ class BuildSitePage extends Page
 
     protected function savePageBuilderSection(array $section, string $title, bool $synced): array
     {
+        return $this->savePageBuilderSectionTranslations($section, $title, $synced, []);
+    }
+
+    protected function savePageBuilderSectionTranslations(array $section, string $title, bool $synced, array $translations): array
+    {
         if (! $this->plugin()->hasSections()) {
             return ['ok' => false, 'errors' => ['section' => __('filament-cms::sections.off')]];
         }
+        $root = app(DocumentTranslations::class)->root($this->record);
+        $locale = $root->shared_format ? $root->language() : $this->record->language();
 
-        return SiteLanguages::run($this->record->language(), fn () => app(SectionLibrary::class)->save($section, $title, $synced, Filament::auth()->user(), $this->isPageBuilderDeveloper()));
+        return SiteLanguages::run($locale, fn () => app(SectionLibrary::class)->save($section, $title, $synced, Filament::auth()->user(), $this->isPageBuilderDeveloper(), $translations));
     }
 
     protected function getPageBuilderSyncedSections(): array
@@ -424,7 +516,7 @@ class BuildSitePage extends Page
             'id' => $synced->getKey(),
             'title' => (string) $synced->title,
             'editUrl' => static::getUrl(['record' => $synced]),
-            'section' => SectionLibrary::firstSection($synced),
+            ...SectionLibrary::builderValue($synced),
         ])->all();
     }
 
@@ -435,10 +527,13 @@ class BuildSitePage extends Page
      */
     private function saveThroughStore(Document $document, array $value): void
     {
-        $result = app(DocumentStore::class)->save($document, $value, Filament::auth()->user(), $this->isPageBuilderDeveloper());
+        $result = app(DocumentStore::class)->save($document, $value, Filament::auth()->user(), $this->isPageBuilderDeveloper(), expectedVersion: $document->getKey() === $this->record->getKey() ? $this->editVersion : null);
 
         if (! $result['ok']) {
             throw ValidationException::withMessages($result['errors'] ?? []);
+        }
+        if ($document->getKey() === $this->record->getKey() && isset($result['edit_version'])) {
+            $this->editVersion = $result['edit_version'];
         }
     }
 

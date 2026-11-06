@@ -3,16 +3,25 @@
 namespace Vortechron\FilamentCms\Filament\Pages;
 
 use BackedEnum;
-use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Navigation\NavigationItem;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Vortechron\FilamentCms\Access\CmsAccess;
 use Vortechron\FilamentCms\Cms;
 use Vortechron\FilamentCms\CmsSettingsTranslations;
+use Vortechron\FilamentCms\ContentForm;
+use Vortechron\FilamentCms\ContentStore;
+use Vortechron\FilamentCms\Filament\Schemas\TranslatableText;
+use Vortechron\FilamentCms\Models\CmsContent;
 use Vortechron\FilamentCms\SiteLanguages;
 
 /**
@@ -44,51 +53,100 @@ class EditSettings extends EditContent
         ];
     }
 
-    protected function getHeaderActions(): array
+    #[Locked]
+    public array $translationBaseline = [];
+
+    #[Locked]
+    public array $settingsBaseline = [];
+
+    public function mount(): void
     {
-        $actions = parent::getHeaderActions();
-        if (! SiteLanguages::enabled()) {
-            return $actions;
-        }
-        foreach (SiteLanguages::labels() as $locale => $label) {
-            if ($locale === SiteLanguages::default()) {
-                continue;
-            }
-            $fields = [];
-            foreach (CmsSettingsTranslations::fields() as $section => $names) {
-                foreach ($names as $name) {
-                    $fields[] = Textarea::make("values.{$section}.{$name}")->label($this->translationFieldLabel($section, $name))->maxLength(10000);
+        parent::mount();
+        if (SiteLanguages::enabled()) {
+            foreach (SiteLanguages::labels() as $locale => $label) {
+                if ($locale !== SiteLanguages::default()) {
+                    $this->translationBaseline[$locale] = CmsSettingsTranslations::saved($locale);
                 }
             }
-            $actions[] = Action::make('translate_'.$locale)
-                ->label(__('filament-cms::languages.settings_action', ['language' => $label]))
-                ->modalDescription(__('filament-cms::languages.settings_help'))
-                ->schema($fields)
-                ->fillForm(fn (): array => ['values' => CmsSettingsTranslations::saved($locale)])
-                ->action(function (array $data) use ($locale): void {
-                    abort_unless(static::canAccess(), 403);
-                    app(CmsSettingsTranslations::class)->save($locale, $data['values'] ?? [], Filament::auth()->user());
-                    Notification::make()->success()->title(__('filament-cms::cms.saved'))->send();
-                });
+            $base = SiteLanguages::run(SiteLanguages::default(), fn () => $this->cms()->saved($this->key));
+            $this->settingsBaseline = ContentForm::fill($this->definition(), $base);
+            $this->form->fill([...$this->settingsBaseline, 'translations' => $this->translationBaseline]);
         }
-
-        return $actions;
     }
 
-    private function translationFieldLabel(string $sectionKey, string $name): string
+    public function form(Schema $schema): Schema
     {
+        if (! SiteLanguages::enabled()) {
+            return parent::form($schema);
+        }
+        $sections = [];
         foreach ($this->definition()->sections() as $section) {
-            if ($section->key !== $sectionKey) {
-                continue;
-            }
+            $fields = [];
             foreach ($section->fields() as $field) {
-                if ($field instanceof Field && $field->getName() === $name) {
-                    return $section->label().' / '.$field->getLabel();
+                $name = $field instanceof Field ? $field->getName() : null;
+                if ($name === null) {
+                    $fields[] = Group::make([$field])->statePath($section->key);
+
+                    continue;
+                }
+                $field->name($section->key.'.'.$name)->statePath($section->key.'.'.$name);
+                if (in_array($name, CmsSettingsTranslations::fields()[$section->key] ?? [], true)
+                    && ($field instanceof TextInput || $field instanceof Textarea)) {
+                    $fields[] = TranslatableText::field($field, function (string $locale) use ($field, $section, $name) {
+                        $translated = clone $field;
+
+                        return $translated->name("translations.{$locale}.{$section->key}.{$name}")->statePath("translations.{$locale}.{$section->key}.{$name}")->required(false)->default(null);
+                    });
+                } else {
+                    $fields[] = $field;
                 }
             }
+            $sections[] = Section::make($section->label())
+                ->description($section->description())->collapsible()->schema($fields);
         }
 
-        return __('filament-cms::languages.text');
+        return $schema->components($sections)->statePath('data');
+    }
+
+    public function save(): void
+    {
+        abort_unless(static::canAccess(), 403);
+        if (! SiteLanguages::enabled()) {
+            parent::save();
+
+            return;
+        }
+        $data = $this->form->getState();
+        $translations = $data['translations'] ?? [];
+        unset($data['translations']);
+        DB::transaction(function () use ($data, $translations): void {
+            foreach ($translations as $locale => $sections) {
+                $changes = [];
+                foreach ($sections as $section => $fields) {
+                    foreach ($fields as $field => $value) {
+                        if ($value !== ($this->translationBaseline[$locale][$section][$field] ?? null)) {
+                            $changes[$section][$field] = $value;
+                        }
+                    }
+                }
+                if ($changes !== []) {
+                    app(CmsSettingsTranslations::class)->save($locale, $changes, Filament::auth()->user(), expectedValues: $this->translationBaseline[$locale] ?? []);
+                }
+            }
+            $row = CmsContent::where('key', $this->key)->lockForUpdate()->first();
+            $saved = ContentForm::fill($this->definition(), $row?->content ?? []);
+            foreach ($data as $section => $fields) {
+                foreach ($fields as $field => $value) {
+                    if ($value !== ($this->settingsBaseline[$section][$field] ?? null)) {
+                        $saved[$section][$field] = $value;
+                    }
+                }
+            }
+            app(ContentStore::class)->save($this->key, $saved, Filament::auth()->user());
+        });
+        $this->translationBaseline = $translations;
+        $this->settingsBaseline = $data;
+        Notification::make()->success()->title(__('filament-cms::cms.saved'))->send();
     }
 
     protected function keyFromRequest(): string

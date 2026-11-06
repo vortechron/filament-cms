@@ -79,7 +79,9 @@ final class SitePageRenderer
         if ($document !== null && ! $includeDraft && ! $document->isPublicPart()) {
             return '';
         }
-        $sections = $document?->contentSections() ?? [];
+        $sections = $document === null ? [] : Document::sectionsOf(
+            app(DocumentTranslations::class)->resolvedValue($document, SiteLanguages::current())
+        );
 
         if (PageContent::visible($sections) === []) {
             return '';

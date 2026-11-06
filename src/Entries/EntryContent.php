@@ -40,6 +40,7 @@ final class EntryContent implements ContentHandler
             'version' => PageValue::VERSION,
             'fields' => array_key_exists('fields', $sent) ? $sent['fields'] : ($stored['fields'] ?? []),
             'sections' => array_key_exists('sections', $sent) ? $sent['sections'] : ($stored['sections'] ?? []),
+            'translations' => $sent['translations'] ?? ($stored['translations'] ?? []),
         ];
     }
 
@@ -73,12 +74,12 @@ final class EntryContent implements ContentHandler
         return [
             'version' => PageValue::VERSION,
             'fields' => Field::cleanFields($type?->getFields() ?? [], $value['fields']),
-            'sections' => $type?->hasBody() ? $this->pages->clean($document, $value, $stored, $developer)['sections'] : [],
+            ...($type?->hasBody() ? $this->pages->clean($document, $value, $stored, $developer) : ['sections' => []]),
         ];
     }
 
     public function restored(array $content): array
     {
-        return ['sections' => Document::sectionsOf($content)];
+        return ['sections' => Document::sectionsOf($content), 'translations' => $content['translations'] ?? []];
     }
 }

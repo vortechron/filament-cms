@@ -55,7 +55,7 @@ class DocumentTranslationsTest extends TestCase
         $english->update(['title' => 'Home', 'sections' => [['id' => 'sec00001', 'type' => 'rich', 'data' => ['document' => [Blocks::paragraph('English welcome')]]]]]);
         $this->get('/en')->assertNotFound();
         $this->assertCount(1, SiteLanguages::links($page));
-        $header = Document::findOrCreatePart(Document::HEADER);
+        $header = Document::create(['kind' => Document::HEADER, 'title' => 'Header', 'content' => ['version' => 2, 'sections' => []]]);
         $translatedHeader = app(DocumentTranslations::class)->create($header, 'en');
         app(DocumentStore::class)->save($header, [['id' => 'head0001', 'type' => 'rich', 'data' => ['document' => [Blocks::paragraph('Kepala Melayu')]]]], null);
         app(DocumentStore::class)->save($translatedHeader, [['id' => 'head0001', 'type' => 'rich', 'data' => ['document' => [Blocks::paragraph('English header')]]]], null);
@@ -139,7 +139,8 @@ class DocumentTranslationsTest extends TestCase
     public function test_a_draft_translated_header_form_cannot_be_submitted_through_a_published_page(): void
     {
         $page = SitePage::create(['title' => 'Utama', 'path' => '/', 'is_published' => true, 'sections' => []]);
-        $header = $this->part(Document::HEADER, [self::formSection()]);
+        $header = Document::create(['kind' => Document::HEADER, 'title' => 'Header', 'content' => ['version' => 2, 'sections' => []]]);
+        $this->assertTrue(app(DocumentStore::class)->save($header, [self::formSection()], null, developer: true)['ok']);
         $english = app(DocumentTranslations::class)->create($page, 'en');
         $english->update(['is_published' => true]);
         $englishHeader = app(DocumentTranslations::class)->create($header, 'en');

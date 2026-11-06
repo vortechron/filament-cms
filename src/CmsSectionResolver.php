@@ -21,6 +21,16 @@ final class CmsSectionResolver implements SectionResolver
 
         $synced = Document::query()->ofKind(Document::SECTION)->find((int) $ref);
 
+        if ($synced !== null) {
+            $translations = app(DocumentTranslations::class);
+            $root = $translations->root($synced);
+            if ($root->shared_format === 1) {
+                $section = $translations->resolvedValue($root, SiteLanguages::current())['sections'][0] ?? null;
+
+                return ($section['type'] ?? null) === 'rich' ? $section : null;
+            }
+        }
+
         if ($synced !== null && SiteLanguages::enabled() && $synced->language() !== SiteLanguages::current()) {
             $synced = $synced->translation(SiteLanguages::current());
         }

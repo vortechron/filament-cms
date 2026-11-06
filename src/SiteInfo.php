@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Vortechron\FilamentBlockEditor\Blocks\Field;
+use Vortechron\FilamentBlockEditor\Rendering\ContentLocale;
 use Vortechron\FilamentCms\Models\CmsContent;
 use Vortechron\FilamentCms\Settings\SettingsSection;
 
@@ -33,8 +34,12 @@ final class SiteInfo
      *
      * @return array{groups: list<array{key: string, label: string, fields: list<Field>}>, values: array<string, array<string, mixed>>}|null
      */
-    public function forBuilder(): ?array
+    public function forBuilder(bool $fieldLanguages = false): ?array
     {
+        if ($fieldLanguages && SiteLanguages::enabled()) {
+            return ContentLocale::with(SiteLanguages::default(), fn (): ?array => $this->fieldLanguageSnapshot());
+        }
+
         $sections = $this->sections();
 
         if ($sections === []) {
@@ -51,6 +56,92 @@ final class SiteInfo
         }
 
         return ['groups' => $groups, 'values' => $values];
+    }
+
+    private function fieldLanguageSnapshot(): ?array
+    {
+        $snapshot = $this->forBuilder();
+        if ($snapshot === null) {
+            return null;
+        }
+
+        $allowed = CmsSettingsTranslations::fields();
+        foreach ($snapshot['groups'] as &$group) {
+            $group['fields'] = array_map(function (Field $field) use ($allowed, $group): Field {
+                $field = clone $field;
+                $field->translatable(in_array($field->name, $allowed[$group['key']] ?? [], true));
+
+                return $field;
+            }, $group['fields']);
+        }
+        unset($group);
+
+        $translations = [];
+        foreach (SiteLanguages::labels() as $locale => $label) {
+            if ($locale === SiteLanguages::default()) {
+                continue;
+            }
+            $saved = CmsSettingsTranslations::saved($locale);
+            foreach ($snapshot['groups'] as $group) {
+                foreach ($group['fields'] as $field) {
+                    $value = $saved[$group['key']][$field->name] ?? null;
+                    if ($field->isTranslatable() && is_string($value)) {
+                        $translations[$locale][$group['key']][$field->name] = $value;
+                    }
+                }
+            }
+        }
+
+        return [...$snapshot, 'translations' => $translations];
+    }
+
+    public function saveTranslations(string $locale, array $values, ?Authenticatable $user, ?array $expectedValues = null): void
+    {
+        $changes = $this->translationChanges($locale, $values);
+        app(CmsSettingsTranslations::class)->save($locale, $changes, $user, $expectedValues);
+    }
+
+    /** Only fields offered by the shop-info form may receive translated words. */
+    private function translationChanges(string $locale, array $values): array
+    {
+        SiteLanguages::check($locale);
+        if ($locale === SiteLanguages::default()) {
+            throw ValidationException::withMessages(['siteInfo' => __('filament-cms::languages.text_only')]);
+        }
+
+        $sections = $this->sections();
+        $allowed = CmsSettingsTranslations::fields();
+        $saved = ContentLocale::with($locale, fn (): array => $this->cms->saved(Cms::SETTINGS));
+        $changes = [];
+        $errors = [];
+        foreach ($values as $key => $submitted) {
+            $section = $sections[$key] ?? null;
+            if ($section === null || ! is_array($submitted) || array_diff(array_keys($submitted), $allowed[$key] ?? [])) {
+                throw ValidationException::withMessages(['siteInfo' => __('filament-cms::languages.text_only')]);
+            }
+            $fields = $section->builderFields();
+            $offered = array_column(array_map(fn (Field $field): array => $field->toArray(), $fields), null, 'name');
+            foreach ($submitted as $field => $value) {
+                if (($offered[$field]['translatable'] ?? false) !== true || ($value !== null && ! is_string($value))) {
+                    throw ValidationException::withMessages(['siteInfo' => __('filament-cms::languages.text_only')]);
+                }
+            }
+            $input = [...$this->builderValues($section, $saved), ...$submitted];
+            foreach (self::check($input, $section->builderRules(), $fields) as $field => $message) {
+                if (array_key_exists(explode('.', $field)[0], $submitted)) {
+                    $errors[$key.'.'.$field] = $message;
+                }
+            }
+            $clean = $section->fromBuilderValues(Field::cleanFields($fields, $input));
+            foreach ($submitted as $field => $value) {
+                $changes[$key][$field] = $value === null ? null : ($clean[$field] ?? '');
+            }
+        }
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return $changes;
     }
 
     /**
@@ -108,8 +199,28 @@ final class SiteInfo
      * @param  array<string, mixed>  $values  by group, as the builder sends them
      * @return array<string, array<string, mixed>>
      */
-    public function previewSettings(array $values): array
+    public function previewSettings(array $values, ?array $translations = null): array
     {
+        if ($translations !== null && SiteLanguages::enabled()) {
+            $locale = SiteLanguages::current();
+            $preview = ContentLocale::with(SiteLanguages::default(), fn (): array => $this->previewSettings($values));
+            $preview = CmsSettingsTranslations::overlay($preview, $locale);
+            if ($locale !== SiteLanguages::default()) {
+                foreach (is_array($translations[$locale] ?? null) ? $translations[$locale] : [] as $group => $fields) {
+                    foreach (is_array($fields) ? $fields : [] as $field => $value) {
+                        try {
+                            $changes = $this->translationChanges($locale, [$group => [$field => $value]]);
+                            $preview = self::merged($preview, $changes);
+                        } catch (ValidationException) {
+                            // Invalid unsaved values keep their saved preview.
+                        }
+                    }
+                }
+            }
+
+            return $preview;
+        }
+
         $saved = $this->cms->saved(Cms::SETTINGS);
         $changes = [];
 

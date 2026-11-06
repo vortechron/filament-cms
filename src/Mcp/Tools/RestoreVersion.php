@@ -10,6 +10,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Vortechron\FilamentCms\DocumentStore;
 use Vortechron\FilamentCms\Mcp\Documents;
+use Vortechron\FilamentCms\Mcp\Input;
 use Vortechron\FilamentCms\Mcp\McpActor;
 use Vortechron\FilamentCms\Mcp\Reply;
 use Vortechron\FilamentCms\Models\CmsRevision;
@@ -21,6 +22,9 @@ class RestoreVersion extends Tool
 {
     public function handle(Request $request, DocumentStore $store): ResponseFactory
     {
+        if ($errors = Input::errors($request->all(), ['expected_version' => ['sometimes', 'integer', 'min:0']])) {
+            return Reply::refused($errors);
+        }
         $document = Documents::byId($request->get('document_id'), 'document_id');
 
         if ($document instanceof ResponseFactory) {
@@ -36,7 +40,7 @@ class RestoreVersion extends Tool
             return Reply::refuse('version_id', "Document {$document->getKey()} has no version ".json_encode($id).'. list_versions shows its versions.');
         }
 
-        $result = $store->restore($document, $version, McpActor::user(), developer: true);
+        $result = $store->restore($document, $version, McpActor::user(), developer: true, expectedVersion: $request->get('expected_version') === null ? null : (int) $request->get('expected_version'));
 
         return Reply::fromResult($result, $document->kind === Document::PAGE ? ['url' => $document->url()] : []);
     }
@@ -44,6 +48,7 @@ class RestoreVersion extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
+            'expected_version' => $schema->integer()->description('Required for shared documents: edit_version from get_document.'),
             'document_id' => $schema->integer()->required()->description('The document id.'),
             'version_id' => $schema->integer()->required()->description('The version id, from list_versions.'),
         ];
